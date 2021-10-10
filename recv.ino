@@ -33,6 +33,15 @@
 
 //#define SIMULATE_INTERRUPTS
 
+    // Use bytes to represent uint16_t. Yes it is possible! Obviously, to the
+    // expense of precision. See compact function.
+    //
+    // * THIS CODE SHOULD ALWAYS WORK WITH COMPACT_DURATIONS DEFINED *
+    //
+    // The possibility *not* to compact durations is available for debugging
+    // purposes.
+//#define COMPACT_DURATIONS
+
 #define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
 
 #define ASSERT_OUTPUT_TO_SERIAL
@@ -180,10 +189,26 @@ char* BitVector::to_str() const {
 #define W_ADD_ONE        5
 #define W_CHECK_BITS     6
 
+// FIXME
+//   Well, this one is "fix me if possible"!
+//   arduino-builder does not compile the code when using instruction
+//     typedef byte duration_t
+//     (or:
+//      typedef uint16_t duration_t
+//     )
+//   It'll say duration_t is unknown.
+//   So I end up using #define, that looks weird.
+//   avr-g++ works well with typedef.
+#ifdef COMPACT_DURATIONS
+#define duration_t byte
+#else
+#define duration_t uint16_t
+#endif
+
 struct auto_t {
     byte w;
-    byte minval;
-    byte maxval;
+    duration_t minval;
+    duration_t maxval;
     byte next_if_w_true;
     byte next_if_w_false;
 };
@@ -212,7 +237,11 @@ auto_t decoder_tribit[] = {
     { W_CHECK_DURATION,  251,   251, 12,   2 }, // 11
     { W_ADD_ONE,           0,     0, 13,   0 }, // 12
 
-    { W_CHECK_BITS,      251,   251,  1,   4 }  // 13
+    { W_CHECK_BITS,      251,   251, 14,   4 }, // 13
+    { W_WAIT_SIGNAL,       0,     0, 15,   0 }, // 14
+    { W_CHECK_DURATION,  251,   251, 16,   0 }, // 15
+    { W_WAIT_SIGNAL,       1,     1, 17,   0 }, // 16
+    { W_CHECK_DURATION,  251,   251,  0,   1 }  // 17
 };
 
 byte status = 0;
@@ -229,9 +258,13 @@ byte n = 32;
 //
 // Any way, keep in mind Arduino timer produces values always multiple of 4,
 // that shifts bit-loss by 2.
-// That is, the first set (that looses 4 bits) actually really looses 2 bits of
-// precision.
-byte compact(uint16_t u) {
+// For example, the first set (that looses 4 bits) actually really looses 2 bits
+// of precision.
+duration_t compact(uint16_t u) {
+#ifndef COMPACT_DURATIONS
+        // No compact -> compact() is a no-op
+    return u;
+#else
     if (u < 2048) {
         return u >> 4;
     }
@@ -241,36 +274,44 @@ byte compact(uint16_t u) {
     if (u < 46080)
         return 248 + ((u - 17408) >> 12);
     return 255;
+#endif
 }
 
 // uncompact() is the opposite of compact(), yes!
 // Left here in case tests are needed (not used in target code).
-//uint16_t uncompact(byte b) {
-//    uint16_t u = b;
-//    if (u < 128) {
-//        return u << 4;
-//    }
-//    u &= 0x7f;
-//    if (u < 120) {
-//        return (u << 7) + 2048;
-//    }
-//    return ((u - 120) << 12) + 17408;
-//}
+uint16_t uncompact(duration_t b) {
+#ifndef COMPACT_DURATIONS
+        // No compact -> uncompact() is a no-op
+    return b;
+#else
+    uint16_t u = b;
+    if (u < 128) {
+        return u << 4;
+    }
+    u &= 0x7f;
+    if (u < 120) {
+        return (u << 7) + 2048;
+    }
+    return ((u - 120) << 12) + 17408;
+#endif
+}
 
 void myset(byte line, byte column, uint16_t d) {
-    byte *ptr;
+    duration_t *ptr;
     if (column == 0)
         ptr = &decoder_tribit[line].minval;
     else
         ptr = &decoder_tribit[line].maxval;
     assert(*ptr == 251);
+
+        // FIXME
     if (line != 13)
         *ptr = compact(d);
     else
         *ptr = d;
 }
 
-static inline bool w_compare(uint16_t minval, uint16_t maxval, uint16_t val) {
+inline bool w_compare(duration_t minval, duration_t maxval, duration_t val) {
     if (val < minval || val > maxval)
         return false;
     return true;
@@ -370,9 +411,9 @@ void handle_int_receive() {
         case W_WAIT_SIGNAL:
             {
 #ifdef SIMULATE_INTERRUPTS
-                uint16_t val = !(timings_index % 2);
+                duration_t val = !(timings_index % 2);
 #else
-                uint16_t val = (digitalRead(PIN_RFINPUT) == HIGH ? 1 : 0);
+                duration_t val = (digitalRead(PIN_RFINPUT) == HIGH ? 1 : 0);
 #endif
                 r = w_compare(current->minval, current->maxval, val);
             }
@@ -426,6 +467,12 @@ void handle_int_receive() {
 void setup() {
     pinMode(PIN_RFINPUT, INPUT);
     Serial.begin(115200);
+
+#ifndef COMPACT_DURATIONS
+    Serial.print("*** WARNING\n    "
+            "COMPACT_DURATIONS NOT DEFINED, MEMORY FOOTPRINT WILL BE HIGHER\n"
+            "    THIS IS A VALID SITUATION ONLY IF DEBUGGING\n");
+#endif
     Serial.print("Waiting for signal\n");
 
     recorded = new BitVector(n);
@@ -475,6 +522,10 @@ void setup() {
     myset(11, 1, 800);
     myset(13, 0, 32);
     myset(13, 1, 32);
+    myset(15, 0, 200);
+    myset(15, 1, 1500);
+    myset(17, 0, 200);
+    myset(17, 1, 1500);
 }
 
 void loop() {
