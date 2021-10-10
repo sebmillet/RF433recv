@@ -40,7 +40,11 @@
     //
     // The possibility *not* to compact durations is available for debugging
     // purposes.
-//#define COMPACT_DURATIONS
+#define COMPACT_DURATIONS
+
+#ifndef COMPACT_DURATIONS
+#pragma message("COMPACT_DURATIONS MACRO NOT DEFINED")
+#endif
 
 #define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
 
@@ -241,8 +245,40 @@ auto_t decoder_tribit[] = {
     { W_WAIT_SIGNAL,       0,     0, 15,   0 }, // 14
     { W_CHECK_DURATION,  251,   251, 16,   0 }, // 15
     { W_WAIT_SIGNAL,       1,     1, 17,   0 }, // 16
-    { W_CHECK_DURATION,  251,   251,  0,   1 }  // 17
+    { W_CHECK_DURATION,  251,   251,  1,   2 }  // 17
 };
+
+/*auto_t decoder_tribit_inverted[] = {
+
+// Below, (T) means 'next status if test returns true' and
+//        (F) means 'next status if test returns false'.
+
+//    WHAT TO DO      MINVAL MAXVAL (T)  (F)
+    { W_WAIT_SIGNAL,        1,     1,  2,   0 }, //  0
+    { W_TERMINATE,          0,     0,  1,  99 }, //  1
+    { W_CHECK_DURATION,   251,   251,  3,   0 }, //  2
+
+    { W_WAIT_SIGNAL,        0,     0,  4,   0 }, //  3
+    { W_CHECK_DURATION,   251,   251,  5,   0 }, //  4
+
+    { W_RESET_BITS,         0,     0,  6,  99 }, //  5
+
+    { W_WAIT_SIGNAL,        1,     1,  7,   0 }, //  6
+    { W_CHECK_DURATION,   251,   251,  9,   8 }, //  7
+    { W_CHECK_DURATION,   251,   251, 12,   2 }, //  8
+
+    { W_WAIT_SIGNAL,        0,     0, 10,   0 }, //  9
+    { W_CHECK_DURATION,   251,   251, 11,   0 }, // 10
+    { W_ADD_ZERO,           0,     0, 15,   0 }, // 11
+
+    { W_WAIT_SIGNAL,        0,     0, 13,   0 }, // 12
+    { W_CHECK_DURATION,   251,   251, 14,   0 }, // 13
+    { W_ADD_ONE,            0,     0, 15,   0 }, // 14
+
+    { W_CHECK_BITS,       251,   251, 16,   6 }, // 15
+    { W_WAIT_SIGNAL,        1,     1, 17,   0 }, // 16
+    { W_CHECK_DURATION,   251,   251,  1,   2 }  // 17
+};*/
 
 byte status = 0;
 const auto_t *dec = &decoder_tribit[0];
@@ -296,19 +332,17 @@ uint16_t uncompact(duration_t b) {
 #endif
 }
 
-void myset(byte line, byte column, uint16_t d) {
-    duration_t *ptr;
-    if (column == 0)
-        ptr = &decoder_tribit[line].minval;
-    else
-        ptr = &decoder_tribit[line].maxval;
-    assert(*ptr == 251);
+void myset(byte line, uint16_t minv, uint16_t maxv, bool dont_compact = 0) {
+    assert(decoder_tribit[line].minval == 251);
+    assert(decoder_tribit[line].maxval == 251);
 
-        // FIXME
-    if (line != 13)
-        *ptr = compact(d);
-    else
-        *ptr = d;
+    if (dont_compact) {
+        decoder_tribit[line].minval = minv;
+        decoder_tribit[line].maxval = maxv;
+    } else {
+        decoder_tribit[line].minval = compact(minv);
+        decoder_tribit[line].maxval = compact(maxv);
+    }
 }
 
 inline bool w_compare(duration_t minval, duration_t maxval, duration_t val) {
@@ -319,41 +353,56 @@ inline bool w_compare(duration_t minval, duration_t maxval, duration_t val) {
 
 #ifdef SIMULATE_INTERRUPTS
 uint16_t timings[] = {
-  0   ,  7064,
-  1160,   632,
-   456,  1344,
-  1156,   656,
-  1156,   660,
-   448,  1376,
-  1148,   684,
-   456,  1388,
-  1148,   652,
-   456,  1336,
-   452,  1340,
-  1152,   652,
-  1148,   672,
-   456,  1372,
-  1156,   692,
-   436,  1412,
-  1124,   676,
-   436,  1348,
-  1132,   656,
-  1148,   660,
-   448,  1372,
-  1148,   680,
-  1140,   688,
-   440,  1404,
-  1140,   664,
-   436,  1364,
-   424,  1376,
-   412,  1392,
-   412,  1396,
-   416,  1404,
-   416,  1412,
-   420,  1424,
-   420,  1348,
-   416,  7136,
-  1072,   720
+//  0   ,  7064,
+//  1160,   632,
+//   456,  1344,
+//  1156,   656,
+//  1156,   660,
+//   448,  1376,
+//  1148,   684,
+//   456,  1388,
+//  1148,   652,
+//   456,  1336,
+//   452,  1340,
+//  1152,   652,
+//  1148,   672,
+//   456,  1372,
+//  1156,   692,
+//   436,  1412,
+//  1124,   676,
+//   436,  1348,
+//  1132,   656,
+//  1148,   660,
+//   448,  1372,
+//  1148,   680,
+//  1140,   688,
+//   440,  1404,
+//  1140,   664,
+//   436,  1364,
+//   424,  1376,
+//   412,  1392,
+//   412,  1396,
+//   416,  1404,
+//   416,  1412,
+//   420,  1424,
+//   420,  1348,
+//   416,  7136,
+//  1072,   720,
+     0, 23916,
+   716,   620,
+  1376,  1312,
+   688,   636,
+  1380,  1300,
+   720,  1280,
+   724,  1292,
+   712,  1288,
+   716,   608,
+  1368,  1320,
+   676,  1352,
+   644,   684,
+  1328,  1368,
+   648, 23924,
+     0
 };
 const size_t timings_len = ARRAYSZ(timings);
 byte timings_index = 0;
@@ -456,12 +505,36 @@ void handle_int_receive() {
             (r ? current->next_if_w_true : current->next_if_w_false);
         delayed_assert(next_status < dec_len);
 
-        dbgf("status = %d, w = %d, next_status = %d", status, w, next_status);
+        dbgf("d = %lu, n = %d, status = %d, w = %d, next_status = %d",
+                duration, recorded->get_nb_bits(), status, w, next_status);
 
         status = next_status;
     } while (dec[status].w != W_TERMINATE && dec[status].w != W_WAIT_SIGNAL);
 
     handle_int_busy = false;
+}
+
+void my_set_tribit() {
+    myset(2, 5000, 65535);
+    myset(5, 200, 800);
+    myset(6, 900, 1500);
+    myset(8, 900, 1500);
+    myset(11, 200, 800);
+    myset(13, 32, 32, 1);
+    myset(15, 200, 1500);
+    myset(17, 5000, 65535);
+}
+
+void my_set_tribit_inverted() {
+    myset(2, 12000, 65535);
+    myset(4, 200, 800);
+    myset(7, 200, 800);
+    myset(8, 900, 1500);
+    myset(10, 900, 1500);
+    myset(13, 200, 800);
+    myset(15, 12, 12, 1);
+    myset(17, 12000, 65535);
+
 }
 
 void setup() {
@@ -510,22 +583,7 @@ void setup() {
 //    while (1)
 //        ;
 
-    myset(2, 0, 5000);
-    myset(2, 1, 65535);
-    myset(5, 0, 200);
-    myset(5, 1, 800);
-    myset(6, 0, 900);
-    myset(6, 1, 1500);
-    myset(8, 0, 900);
-    myset(8, 1, 1500);
-    myset(11, 0, 200);
-    myset(11, 1, 800);
-    myset(13, 0, 32);
-    myset(13, 1, 32);
-    myset(15, 0, 200);
-    myset(15, 1, 1500);
-    myset(17, 0, 200);
-    myset(17, 1, 1500);
+    my_set_tribit();
 }
 
 void loop() {
