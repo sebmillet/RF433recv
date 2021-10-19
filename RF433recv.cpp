@@ -34,93 +34,10 @@
   with receiver plugged on D2.
 */
 
-/*
-
-**About the classes Band, Rail and Track**
-
-1. About none of these - the signal as we see it.
-
-The Radio-Frequence signal is supposed to be OOK (On-Off Keying), and
-auto-synchronized.
-
-The signal is a succession of low signal and high signal, low when no RF signal
-received, high when a RF signal is received.
-The coding relies on durations being either 'short' or 'long', and sometimes
-much longer (to initialize, and to separate signal pieces).
-
-The durations can be one of:
-    - short
-    - long, typically, twice as long as short
-    - separator, much longer than the long one (at least 3 or 4 times longer)
-    - initialization, at least as long as the separator, often much longer. It
-      serves to make receiver ready to receive coded signal to come.
-
-A signal structure is as follows:
-    1. Initialization (very long high signal)
-    2. Succession of low and high signals being 'short' or 'long'
-    3. Separator (high signal)
-    4. Possibly, repetition of steps 2 and 3
-
-The succession of 'short' and 'long' is then decoded into original data, either
-based on tri-bit scheme (inverted or not), or, Manchester.
-
-Note that there can be complexities:
-
-- After the long initialization high signal, addition of 'intermediate' prefix
-  to the signal (longer than 'long', but shorter than 'separator'). Seen on a
-  NICE FLO/R telecommand (/R means Rolling Code), while not seen on NICE FLO
-  (fix code). The author guesses this prefix serves to let the receiver know the
-  signal to come is FLO/R instead of FLO.
-
-- After the long initialization high signal, succession of {low=short,
-  high=short} followed by a separator. This serves as a synchronization
-  sequence.
-
-- While most protocols use same lengths for low and high signals, on NICE FLO/R
-  this rule is not met, that is: the 'short' and 'long' durations of the low
-  signal are different from 'short' and 'long' durations of the high signal.
-
-2. About Rail
-
-The Rail manages the succession of durations for one, and only one, of signal
-realms (low or high).
-
-That is, if you note dow the signal as usually (by line, one low followed by one
-high):
-      LOW, HIGH
-      150,  200
-      145,  400
-      290,  195
-        ...
-
-Then the values below LOW (150, 145, 290, ...) are one Rail, and the values
-below HIGH (200, 400, 195, ...) are another Rail.
-
-3. About Bands
-
-A band aims to categorize a duration, short or long. Therefore, a Rail is made
-of 2 bands, one for the short duration, one for the long duration.
-
-4. About Tracks
-
-Rails live their own live but at some point, they must work in conjunction
-(start and stop together, and provide final decoded values). This is the purpose
-of a Track, that is made of 2 Rails.
-
-In the end, a Track provides a convenient interface to the caller.
-
-5. Overall schema
-
-track ->  r_low  ->  b_short = manage short duration on LOW signal
-      |          `-> b_long  = manage long duration on LOW signal
-      |
-      `-> r_high ->  b_short = manage short duration on HIGH signal
-                 `-> b_long  = manage long duration on HIGH signal
-
-*/
-
 #include "RF433recv.h"
 #include <Arduino.h>
+
+//#define SIMULATE_INTERRUPTS
 
 #define ASSERT_OUTPUT_TO_SERIAL
 
@@ -140,9 +57,461 @@ static void rf433recv_assert_failed(int line) {
         ;
 }
 
-class dummy {
-    public:
-        dummy() { rf433recv_assert_failed(145); }
+#define delayed_assert(cond) { \
+    if (!(cond)) { \
+        delayed_assert = __LINE__; \
+    } \
+}
+
+unsigned int delayed_assert = 0;
+void check_delayed_assert() {
+    if (!delayed_assert)
+        return;
+    Serial.print("delayed assert failed line ");
+    Serial.print(delayed_assert);
+    Serial.print("\n");
+    while (1)
+        ;
+}
+
+void handle_int_receive();
+
+// * ********* ****************************************************************
+// * BitVector ****************************************************************
+// * ********* ****************************************************************
+
+BitVector::BitVector(byte arg_target_nb_bits):
+        target_nb_bits(arg_target_nb_bits),
+        target_nb_bytes((arg_target_nb_bits + 7) >> 3),
+        nb_bits(0) {
+    assert(target_nb_bytes);
+    array = (uint8_t*)malloc(target_nb_bytes);
+}
+
+BitVector::~BitVector() {
+    if (array)
+        free(array);
+}
+
+void BitVector::reset() {
+    nb_bits = 0;
+}
+
+void BitVector::add_bit(byte v) {
+    ++nb_bits;
+    assert(nb_bits <= target_nb_bits);
+
+    for (short i = target_nb_bytes - 1; i >= 0; --i) {
+
+        byte b;
+            // b must be 0 or 1, hence the !! sequences below
+        if (i > 0) {
+            b = !!(array[i - 1] & 0x80);
+        } else {
+            b = !!v;
+        }
+
+        array[i]= (array[i] << 1) | b;
+
+    }
+}
+
+int BitVector::get_nb_bits() const {
+    return nb_bits;
+}
+
+byte BitVector::get_nb_bytes() const {
+    return (nb_bits + 7) >> 3;
+}
+
+    // Bit numbering starts at 0
+byte BitVector::get_nth_byte(byte n) const {
+    assert(n >= 0 && n < get_nb_bytes());
+    return array[n];
+}
+
+    // *IMPORTANT*
+    //   If no data got received, returns nullptr. So, you must test the
+    //   returned value.
+    //
+    // *VERY IMPORTANT (2)* WARNING
+    //   THE RETURN VALUE IS MALLOC'D SO CALLER MUST THINK OF FREEING IT.
+    //   For example:
+    //     char *s = data_to_str_with_malloc(data);
+    //     ...
+    //     if (s)       // DON'T FORGET (s can be null)
+    //         free(s); // DON'T FORGET! (if non-null, s must be freed)
+char* BitVector::to_str() const {
+    if (!get_nb_bits())
+        return nullptr;
+
+    byte nb_bytes = get_nb_bytes();
+
+    char *ret = (char*)malloc(nb_bytes * 3);
+    char tmp[3];
+    int j = 0;
+    for (int i = nb_bytes - 1; i >= 0 ; --i) {
+        snprintf(tmp, sizeof(tmp), "%02x", get_nth_byte(i));
+        ret[j] = tmp[0];
+        ret[j + 1] = tmp[1];
+        ret[j + 2] = (i > 0 ? ' ' : '\0');
+        j += 3;
+    }
+    assert(j <= nb_bytes * 3);
+
+    return ret;
+}
+
+
+// * ****************** *******************************************************
+// * compact, uncompact *******************************************************
+// * ****************** *******************************************************
+
+// compact() aims to represent 16-bit integers in 8-bit, to the cost of
+// precision.
+// The three sets (first one looses 4 bits, middle looses 7, last looses 12)
+// have been chosen so that smaller durations don't loose too much precision.
+//
+// Any way, keep in mind Arduino timer produces values always multiple of 4,
+// that shifts bit-loss by 2.
+// For example, the first set (that looses 4 bits) actually really looses 2 bits
+// of precision.
+duration_t compact(uint16_t u) {
+#ifndef COMPACT_DURATIONS
+        // compact not activated -> compact() is a no-op
+    return u;
+#else
+    if (u < 2048) {
+        return u >> 4;
+    }
+    if (u < 17408) {
+        return 128 + ((u - 2048) >> 7);
+    }
+    if (u < 46080)
+        return 248 + ((u - 17408) >> 12);
+    return 255;
+#endif
+}
+
+// uncompact() is the opposite of compact(), yes!
+// Left here in case tests are needed (not used in target code).
+// FIXME
+//   Comment it for production code (not used normally in production)
+uint16_t uncompact(duration_t b) {
+#ifndef COMPACT_DURATIONS
+        // compact not activated -> uncompact() is a no-op
+    return b;
+#else
+    uint16_t u = b;
+    if (u < 128) {
+        return u << 4;
+    }
+    u &= 0x7f;
+    if (u < 120) {
+        return (u << 7) + 2048;
+    }
+    return ((u - 120) << 12) + 17408;
+#endif
+}
+
+
+// * ******** *****************************************************************
+// * Receiver *****************************************************************
+// * ******** *****************************************************************
+
+Receiver::Receiver(auto_t *arg_dec, const unsigned short arg_dec_len,
+            const byte arg_n):
+        dec(arg_dec),
+        dec_len(arg_dec_len),
+        n(arg_n),
+        status(0),
+        has_value(false),
+        next(nullptr) {
+
+    recorded = new BitVector(n);
+
+    assert(dec);
+    assert(dec_len);
+    assert(n);
+    assert(recorded);
+}
+
+Receiver::~Receiver() {
+    if (recorded)
+        delete recorded;
+}
+
+void Receiver::reset() {
+    if (!recorded)
+        return;
+
+    status = 0;
+    has_value = false;
+    recorded->reset();
+}
+
+bool Receiver::w_compare(duration_t minval, duration_t maxval, duration_t val)
+        const {
+    if (val < minval || val > maxval)
+        return false;
+    return true;
+}
+
+void Receiver::process_signal(duration_t signal_duration, byte signal_val) {
+    do {
+        const auto_t *current = &dec[status];
+        const byte w = current->w;
+
+        bool r;
+        switch (w) {
+        case W_WAIT_SIGNAL:
+            r = w_compare(current->minval, current->maxval, signal_val);
+            break;
+
+        case W_TERMINATE:
+            has_value = true;
+            r = true;
+            break;
+
+        case W_CHECK_DURATION:
+            r = w_compare(current->minval, current->maxval,
+                    compact(signal_duration));
+            break;
+
+        case W_RESET_BITS:
+            recorded->reset();
+            r = true;
+            break;
+
+        case W_ADD_ZERO:
+            recorded->add_bit(0);
+            r = true;
+            break;
+
+        case W_ADD_ONE:
+            recorded->add_bit(1);
+            r = true;
+            break;
+
+        case W_CHECK_BITS:
+            r = w_compare(current->minval, current->maxval,
+                    recorded->get_nb_bits());
+            break;
+
+        default:
+            assert(false);
+        }
+
+        byte next_status =
+            (r ? current->next_if_w_true : current->next_if_w_false);
+        delayed_assert(next_status < dec_len);
+
+        dbgf("d = %u, n = %d, status = %d, w = %d, next_status = %d",
+                signal_duration, recorded->get_nb_bits(), status, w,
+                next_status);
+
+        status = next_status;
+    } while (dec[status].w != W_TERMINATE && dec[status].w != W_WAIT_SIGNAL);
+}
+
+void Receiver::attach(Receiver* ptr_rec) {
+    assert(!next);
+    next = ptr_rec;
+}
+
+
+// * ********** ***************************************************************
+// * RF_manager ***************************************************************
+// * ********** ***************************************************************
+
+RF_manager::RF_manager(byte arg_pin_input_num, byte arg_int_num):
+        int_num(arg_int_num) {
+    pin_input_num = arg_pin_input_num;
+    head = nullptr;
+    ++obj_count;
+
+        // IT MAKES NO SENSE TO HAVE MORE THAN 1 RF_MANAGER
+    assert(obj_count == 1);
+
+}
+
+RF_manager::~RF_manager() { }
+
+Receiver* RF_manager::get_tail() {
+    const Receiver* ptr_rec = head;
+    if (ptr_rec) {
+        while (ptr_rec->get_next())
+            ptr_rec = ptr_rec->get_next();
+    }
+    return (Receiver*)ptr_rec;
+}
+
+void RF_manager::register_Receiver(auto_t *arg_dec,
+        const unsigned short arg_dec_len, const byte arg_n) {
+    Receiver *ptr_rec = new Receiver(arg_dec, arg_dec_len, arg_n);
+    Receiver *tail = get_tail();
+    if (!tail) {
+        head = ptr_rec;
+    } else {
+        tail->attach(ptr_rec);
+    }
+}
+
+bool RF_manager::get_has_value() const {
+    Receiver* ptr_rec = head;
+    while (ptr_rec) {
+        if (ptr_rec->get_has_value())
+            return true;
+        ptr_rec = ptr_rec->get_next();
+    }
+    return false;
+}
+
+Receiver* RF_manager::get_receiver_that_has_a_value() const {
+    Receiver* ptr_rec = head;
+    while (ptr_rec) {
+        if (ptr_rec->get_has_value())
+            return ptr_rec;
+    }
+    return nullptr;
+}
+
+void RF_manager::activate_interrupts_handler() {
+#ifndef SIMULATE_INTERRUPTS
+    attachInterrupt(int_num, &handle_int_receive, CHANGE);
+#endif
+}
+
+void RF_manager::inactivate_interrupts_handler() {
+#ifndef SIMULATE_INTERRUPTS
+    detachInterrupt(int_num);
+#endif
+}
+
+void RF_manager::wait_value_available() {
+    activate_interrupts_handler();
+    while (!get_has_value()) {
+        delay(1);
+#ifdef SIMULATE_INTERRUPTS
+        handle_int_receive();
+#endif
+        check_delayed_assert();
+    }
+    inactivate_interrupts_handler();
+}
+
+byte RF_manager::pin_input_num = 255;
+Receiver* RF_manager::head = nullptr;
+byte RF_manager::obj_count = 0;
+
+
+// * ***************** ********************************************************
+// * Interrupt Handler ********************************************************
+// * ***************** ********************************************************
+
+#ifdef SIMULATE_INTERRUPTS
+uint16_t timings[] = {
+  0   ,  7064,
+  1160,   632,
+   456,  1344,
+  1156,   656,
+  1156,   660,
+   448,  1376,
+  1148,   684,
+   456,  1388,
+  1148,   652,
+   456,  1336,
+   452,  1340,
+  1152,   652,
+  1148,   672,
+   456,  1372,
+  1156,   692,
+   436,  1412,
+  1124,   676,
+   436,  1348,
+  1132,   656,
+  1148,   660,
+   448,  1372,
+  1148,   680,
+  1140,   688,
+   440,  1404,
+  1140,   664,
+   436,  1364,
+   424,  1376,
+   412,  1392,
+   412,  1396,
+   416,  1404,
+   416,  1412,
+   420,  1424,
+   420,  1348,
+   416,  7136,
+  1072,   720,
+     0, 23916,
+   716,   620,
+  1376,  1312,
+   688,   636,
+  1380,  1300,
+   720,  1280,
+   724,  1292,
+   712,  1288,
+   716,   608,
+  1368,  1320,
+   676,  1352,
+   644,   684,
+  1328,  1368,
+   648, 23924,
+     0
 };
+const size_t timings_len = sizeof(timings) / sizeof(*timings);
+byte timings_index = 0;
+#endif
+
+bool handle_int_overrun = false;
+bool handle_int_busy = false;
+
+void handle_int_receive() {
+    static unsigned long last_t = 0;
+
+    const unsigned long t = micros();
+    unsigned long signal_duration = t - last_t;
+    last_t = t;
+
+#ifdef SIMULATE_INTERRUPTS
+    if (timings_index < timings_len) {
+        signal_duration = timings[timings_index];
+        timings_index++;
+    } else {
+        return;
+    }
+    dbg("--");
+#endif
+
+    if (handle_int_busy) {
+        handle_int_overrun = true;
+        return;
+    }
+
+    if (handle_int_overrun) {
+        signal_duration = 0;
+        handle_int_overrun = false;
+    }
+    handle_int_busy = true;
+    sei();
+
+#ifdef SIMULATE_INTERRUPTS
+            byte signal_val = !(timings_index % 2);
+#else
+            byte signal_val =
+                (digitalRead(RF_manager::get_pin_input_num()) == HIGH ? 1 : 0);
+#endif
+
+    Receiver *ptr_rec = RF_manager::get_head();
+    while (ptr_rec) {
+        ptr_rec->process_signal(signal_duration, signal_val);
+        ptr_rec = ptr_rec->get_next();
+    }
+
+    handle_int_busy = false;
+}
 
 // vim: ts=4:sw=4:tw=80:et
