@@ -372,6 +372,7 @@ Receiver* RF_manager::get_receiver_that_has_a_value() const {
     while (ptr_rec) {
         if (ptr_rec->get_has_value())
             return ptr_rec;
+        ptr_rec = ptr_rec->get_next();
     }
     return nullptr;
 }
