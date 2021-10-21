@@ -18,10 +18,18 @@
   <https://www.gnu.org/licenses>.
 */
 
-//#define DEBUG
-
 #ifndef _RF433RECV_H
 #define _RF433RECV_H
+
+//#define DEBUG
+//#define SIMULATE_INTERRUPTS
+    // The possibility *not* to compact durations is available for debugging
+    // purposes.
+//#define NO_COMPACT_DURATIONS
+
+#ifdef NO_COMPACT_DURATIONS
+#pragma message("NO_COMPACT_DURATIONS MACRO DEFINED")
+#endif
 
 #ifdef DEBUG
 
@@ -35,6 +43,7 @@
 #endif
 
 #include <Arduino.h>
+
 
 // * ********* ****************************************************************
 // * BitVector ****************************************************************
@@ -76,10 +85,10 @@ class BitVector {
 //   It'll say duration_t is unknown.
 //   So I end up using #define, that looks weird.
 //   avr-g++ works well with typedef.
-#ifdef COMPACT_DURATIONS
-#define duration_t byte
-#else
+#ifdef NO_COMPACT_DURATIONS
 #define duration_t uint16_t
+#else
+#define duration_t byte
 #endif
 
 duration_t compact(uint16_t u);
@@ -119,7 +128,8 @@ class Receiver {
                 const byte n);
         ~Receiver();
 
-        void process_signal(duration_t signal_duration, byte signal_val);
+        void process_signal(duration_t compact_signal_duration,
+                byte signal_val);
 
         void reset();
 

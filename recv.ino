@@ -31,19 +31,6 @@
 #define PIN_RFINPUT  2
 #define INT_RFINPUT  0
 
-    // Use bytes to represent uint16_t. Yes it is possible! Obviously, to the
-    // expense of precision. See compact function.
-    //
-    // * THIS CODE SHOULD ALWAYS WORK WITH COMPACT_DURATIONS DEFINED *
-    //
-    // The possibility *not* to compact durations is available for debugging
-    // purposes.
-#define COMPACT_DURATIONS
-
-#ifndef COMPACT_DURATIONS
-#pragma message("COMPACT_DURATIONS MACRO NOT DEFINED")
-#endif
-
 #define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
 
 #define ASSERT_OUTPUT_TO_SERIAL
@@ -56,9 +43,9 @@
 
 static void recv_ino_assert_failed(int line) {
 #ifdef ASSERT_OUTPUT_TO_SERIAL
-    Serial.print("\nrecv.ino:");
+    Serial.print(F("\nrecv.ino:"));
     Serial.print(line);
-    Serial.println(": assertion failed, aborted.");
+    Serial.println(F(": assertion failed, aborted."));
 #endif
     while (1)
         ;
@@ -178,12 +165,12 @@ void setup() {
     pinMode(PIN_RFINPUT, INPUT);
     Serial.begin(115200);
 
-#ifndef COMPACT_DURATIONS
-    Serial.print("*** WARNING\n    "
-            "COMPACT_DURATIONS NOT DEFINED, MEMORY FOOTPRINT WILL BE HIGHER\n"
-            "    THIS IS A VALID SITUATION ONLY IF DEBUGGING\n");
+#ifdef NO_COMPACT_DURATIONS
+    Serial.print(F("*** WARNING\n    "
+            "NO_COMPACT_DURATIONS DEFINED, MEMORY FOOTPRINT WILL BE HIGHER\n"
+            "    THIS IS A VALID SITUATION ONLY IF DEBUGGING\n"));
 #endif
-    Serial.print("Waiting for signal\n");
+    Serial.print(F("Waiting for signal\n"));
 
 //    dbgf("compact(200) = %u => %u\n", compact(200),
 //            uncompact(compact(200)));
@@ -219,11 +206,11 @@ void setup() {
 //        ;
 
     my_set_tribit();
-    my_set_tribit_inverted();
+//    my_set_tribit_inverted();
 
     rf.register_Receiver(decoder_tribit, ARRAYSZ(decoder_tribit), 32);
-    rf.register_Receiver(decoder_tribit_inverted,
-            ARRAYSZ(decoder_tribit_inverted), 12);
+//    rf.register_Receiver(decoder_tribit_inverted,
+//            ARRAYSZ(decoder_tribit_inverted), 12);
 }
 
 void loop() {
@@ -237,11 +224,11 @@ void loop() {
 
     char *printed_code = recorded->to_str();
     if (printed_code) {
-        Serial.print("Received code: ");
+        Serial.print(F("Received code: "));
         Serial.print(recorded->get_nb_bits());
-        Serial.print(" bits: [");
+        Serial.print(F(" bits: ["));
         Serial.print(printed_code);
-        Serial.print("]\n");
+        Serial.print(F("]\n"));
     }
     if (printed_code)
         free(printed_code);

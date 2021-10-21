@@ -37,8 +37,6 @@
 #include "RF433recv.h"
 #include <Arduino.h>
 
-//#define SIMULATE_INTERRUPTS
-
 #define ASSERT_OUTPUT_TO_SERIAL
 
 #define assert(cond) { \
@@ -49,9 +47,9 @@
 
 static void rf433recv_assert_failed(int line) {
 #ifdef ASSERT_OUTPUT_TO_SERIAL
-    Serial.print("\nRF433recv.cpp:");
+    Serial.print(F("\nRF433recv.cpp:"));
     Serial.print(line);
-    Serial.println(": assertion failed, aborted.");
+    Serial.println(F(": assertion failed, aborted."));
 #endif
     while (1)
         ;
@@ -67,9 +65,9 @@ unsigned int delayed_assert = 0;
 void check_delayed_assert() {
     if (!delayed_assert)
         return;
-    Serial.print("delayed assert failed line ");
+    Serial.print(F("\nRF433recv.cpp: delayed assert failed line "));
     Serial.print(delayed_assert);
-    Serial.print("\n");
+    Serial.print(F("\n"));
     while (1)
         ;
 }
@@ -177,7 +175,7 @@ char* BitVector::to_str() const {
 // For example, the first set (that looses 4 bits) actually really looses 2 bits
 // of precision.
 duration_t compact(uint16_t u) {
-#ifndef COMPACT_DURATIONS
+#ifdef NO_COMPACT_DURATIONS
         // compact not activated -> compact() is a no-op
     return u;
 #else
@@ -198,7 +196,7 @@ duration_t compact(uint16_t u) {
 // FIXME
 //   Comment it for production code (not used normally in production)
 uint16_t uncompact(duration_t b) {
-#ifndef COMPACT_DURATIONS
+#ifdef NO_COMPACT_DURATIONS
         // compact not activated -> uncompact() is a no-op
     return b;
 #else
@@ -252,12 +250,16 @@ void Receiver::reset() {
 
 bool Receiver::w_compare(duration_t minval, duration_t maxval, duration_t val)
         const {
+
+    dbgf("Compare %u with [%u, %u]", val, minval, maxval);
+
     if (val < minval || val > maxval)
         return false;
     return true;
 }
 
-void Receiver::process_signal(duration_t signal_duration, byte signal_val) {
+void Receiver::process_signal(duration_t compact_signal_duration,
+        byte signal_val) {
     do {
         const auto_t *current = &dec[status];
         const byte w = current->w;
@@ -275,7 +277,7 @@ void Receiver::process_signal(duration_t signal_duration, byte signal_val) {
 
         case W_CHECK_DURATION:
             r = w_compare(current->minval, current->maxval,
-                    compact(signal_duration));
+                    compact_signal_duration);
             break;
 
         case W_RESET_BITS:
@@ -307,7 +309,7 @@ void Receiver::process_signal(duration_t signal_duration, byte signal_val) {
         delayed_assert(next_status < dec_len);
 
         dbgf("d = %u, n = %d, status = %d, w = %d, next_status = %d",
-                signal_duration, recorded->get_nb_bits(), status, w,
+                compact_signal_duration, recorded->get_nb_bits(), status, w,
                 next_status);
 
         status = next_status;
@@ -358,6 +360,7 @@ void RF_manager::register_Receiver(auto_t *arg_dec,
 }
 
 bool RF_manager::get_has_value() const {
+    check_delayed_assert();
     Receiver* ptr_rec = head;
     while (ptr_rec) {
         if (ptr_rec->get_has_value())
@@ -396,7 +399,6 @@ void RF_manager::wait_value_available() {
 #ifdef SIMULATE_INTERRUPTS
         handle_int_receive();
 #endif
-        check_delayed_assert();
     }
     inactivate_interrupts_handler();
 }
@@ -506,9 +508,10 @@ void handle_int_receive() {
                 (digitalRead(RF_manager::get_pin_input_num()) == HIGH ? 1 : 0);
 #endif
 
+    duration_t compact_signal_duration = compact(signal_duration);
     Receiver *ptr_rec = RF_manager::get_head();
     while (ptr_rec) {
-        ptr_rec->process_signal(signal_duration, signal_val);
+        ptr_rec->process_signal(compact_signal_duration, signal_val);
         ptr_rec = ptr_rec->get_next();
     }
 
