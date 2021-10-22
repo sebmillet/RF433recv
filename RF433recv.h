@@ -23,6 +23,7 @@
 
 //#define DEBUG
 //#define SIMULATE_INTERRUPTS
+
     // The possibility *not* to compact durations is available for debugging
     // purposes.
 //#define NO_COMPACT_DURATIONS

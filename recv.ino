@@ -56,7 +56,7 @@ static void recv_ino_assert_failed(int line) {
 // * Automat ******************************************************************
 // * ******* ******************************************************************
 
-auto_t decoder_tribit[] = {
+auto_t automat_tribit[] = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
@@ -119,31 +119,96 @@ auto_t decoder_tribit_inverted[] = {
     { W_CHECK_DURATION,   251,   251,  1,   2 }  // 17
 };
 
-void myset(auto_t *dec, byte dec_len, byte line, uint16_t minv, uint16_t maxv,
-        bool dont_compact = 0) {
+void myset(auto_t *dec, byte dec_len, byte line, uint16_t minv, uint16_t maxv) {
     assert(line < dec_len);
     assert(dec[line].minval == 251);
     assert(dec[line].maxval == 251);
 
-    if (dont_compact) {
-        dec[line].minval = minv;
-        dec[line].maxval = maxv;
-    } else {
-        dec[line].minval = compact(minv);
-        dec[line].maxval = compact(maxv);
-    }
+    dec[line].minval = minv;
+    dec[line].maxval = maxv;
 }
 
-void my_set_tribit() {
-    byte sz = ARRAYSZ(decoder_tribit);
-    myset(decoder_tribit, sz, 2, 5000, 65535);
-    myset(decoder_tribit, sz, 5, 200, 800);
-    myset(decoder_tribit, sz, 6, 900, 1500);
-    myset(decoder_tribit, sz, 8, 900, 1500);
-    myset(decoder_tribit, sz, 11, 200, 800);
-    myset(decoder_tribit, sz, 13, 32, 32, 1);
-    myset(decoder_tribit, sz, 15, 200, 1500);
-    myset(decoder_tribit, sz, 17, 5000, 65535);
+#define RFMOD_TRIBIT          0
+#define RFMOD_TRIBIT_INVERTED 1
+#define RFMOD_MANCHESTER      2
+
+struct RfSignal {
+    byte mod;
+    uint16_t initseq;
+    uint16_t lo_prefix;
+    uint16_t hi_prefix;
+    uint16_t first_lo_ign;
+    uint16_t lo_short;
+    uint16_t lo_long;
+    uint16_t hi_short;
+    uint16_t hi_long;
+    uint16_t lo_last;
+    uint16_t sep;
+    byte nb_bits;
+};
+
+void get_boundaries(uint16_t lo_short, uint16_t lo_long,
+        duration_t& lo_short_inf, duration_t& lo_short_sup,
+        duration_t& lo_long_inf, duration_t& lo_long_sup) {
+    lo_short_inf = compact(lo_short >> 2);
+    lo_short_sup = compact((lo_short + lo_long) >> 1);
+    lo_long_inf = compact(lo_short_sup + 1);
+    lo_long_sup = compact(lo_long + (lo_long >> 1));
+}
+
+void build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
+        uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
+        uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
+        uint16_t sep, byte nb_bits) {
+    byte sz = ARRAYSZ(automat_tribit);
+
+    assert((hi_short && hi_long) || (!hi_short && !hi_long));
+    if (!hi_short && !hi_long) {
+        hi_short = lo_short;
+        hi_long = lo_long;
+    }
+    duration_t c_lo_short_inf;
+    duration_t c_lo_short_sup;
+    duration_t c_lo_long_inf;
+    duration_t c_lo_long_sup;
+    get_boundaries(lo_short, lo_long, c_lo_short_inf, c_lo_short_sup,
+            c_lo_long_inf, c_lo_long_sup);
+    duration_t c_hi_short_inf;
+    duration_t c_hi_short_sup;
+    duration_t c_hi_long_inf;
+    duration_t c_hi_long_sup;
+    get_boundaries(hi_short, hi_long, c_hi_short_inf, c_hi_short_sup,
+            c_hi_long_inf, c_hi_long_sup);
+    duration_t c_sep = compact(sep - (sep >> 2));
+    duration_t c_l = (c_lo_long_sup >= c_hi_long_sup
+            ? c_lo_long_sup : c_hi_long_sup);
+    if (c_sep <= c_l)
+        c_sep = c_l + 1;
+    duration_t c_initseq = compact(initseq - (initseq >> 2));
+
+    dbgf(   "c_lo_short_inf = %5u\n"
+            "c_lo_short_sup = %5u\n"
+            "c_lo_long_inf  = %5u\n"
+            "c_lo_long_sup  = %5u\n",
+            c_lo_short_inf, c_lo_short_sup, c_lo_long_inf, c_lo_long_sup);
+    dbgf(   "c_hi_short_inf = %5u\n"
+            "c_hi_short_sup = %5u\n"
+            "c_hi_long_inf  = %5u\n"
+            "c_hi_long_sup  = %5u\n",
+            c_hi_short_inf, c_hi_short_sup, c_hi_long_inf, c_hi_long_sup);
+
+    dbgf(   "c_sep          = %5u\n"
+            "c_initseq      = %5u",
+            c_sep, c_initseq);
+
+    myset(automat_tribit, sz, 2, c_initseq, compact(65535));
+    myset(automat_tribit, sz, 5, c_lo_short_inf, c_lo_short_sup);
+    myset(automat_tribit, sz, 6, c_lo_long_inf, c_lo_long_sup);
+    myset(automat_tribit, sz, 8, c_hi_long_inf, c_hi_long_sup);
+    myset(automat_tribit, sz, 11, c_hi_short_inf, c_hi_short_sup);
+    myset(automat_tribit, sz, 13, nb_bits, nb_bits);
+    myset(automat_tribit, sz, 15, c_lo_short_inf, c_lo_long_sup);
+    myset(automat_tribit, sz, 17, c_sep, compact(65535));
 }
 
 void my_set_tribit_inverted() {
@@ -154,7 +219,7 @@ void my_set_tribit_inverted() {
     myset(decoder_tribit_inverted, sz, 8, 900, 1500);
     myset(decoder_tribit_inverted, sz, 10, 900, 1500);
     myset(decoder_tribit_inverted, sz, 13, 200, 800);
-    myset(decoder_tribit_inverted, sz, 15, 12, 12, 1);
+//    myset(decoder_tribit_inverted, sz, 15, 12, 12, 1);
     myset(decoder_tribit_inverted, sz, 17, 12000, 65535);
 
 }
@@ -205,10 +270,23 @@ void setup() {
 //    while (1)
 //        ;
 
-    my_set_tribit();
+    build_automat(
+            RFMOD_TRIBIT, // mod
+                    7000, // initseq
+                       0, // lo_prefix
+                       0, // hi_prefix
+                       0, // first_lo_ign
+                     620, // lo_short
+                    1240, // lo_long
+                       0, // hi_short (0 => take lo_short)
+                       0, // hi_long  (0 => take hi_long)
+                     620, // lo_last
+                    7000, // sep
+                      32  // nb_bits
+            );
 //    my_set_tribit_inverted();
 
-    rf.register_Receiver(decoder_tribit, ARRAYSZ(decoder_tribit), 32);
+    rf.register_Receiver(automat_tribit, ARRAYSZ(automat_tribit), 32);
 //    rf.register_Receiver(decoder_tribit_inverted,
 //            ARRAYSZ(decoder_tribit_inverted), 12);
 }
