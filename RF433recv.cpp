@@ -45,29 +45,12 @@
     } \
 }
 
-static void rf433recv_assert_failed(int line) {
+static void rf433recv_assert_failed(unsigned int line) {
 #ifdef ASSERT_OUTPUT_TO_SERIAL
     Serial.print(F("\nRF433recv.cpp:"));
     Serial.print(line);
     Serial.println(F(": assertion failed, aborted."));
 #endif
-    while (1)
-        ;
-}
-
-#define delayed_assert(cond) { \
-    if (!(cond)) { \
-        delayed_assert = __LINE__; \
-    } \
-}
-
-unsigned int delayed_assert = 0;
-void check_delayed_assert() {
-    if (!delayed_assert)
-        return;
-    Serial.print(F("\nRF433recv.cpp: delayed assert failed line "));
-    Serial.print(delayed_assert);
-    Serial.print(F("\n"));
     while (1)
         ;
 }
@@ -306,7 +289,7 @@ void Receiver::process_signal(duration_t compact_signal_duration,
 
         byte next_status =
             (r ? current->next_if_w_true : current->next_if_w_false);
-        delayed_assert(next_status < dec_len);
+        assert(next_status < dec_len);
 
         dbgf("d = %u, n = %d, status = %d, w = %d, next_status = %d",
                 compact_signal_duration, recorded->get_nb_bits(), status, w,
@@ -360,7 +343,6 @@ void RF_manager::register_Receiver(auto_t *arg_dec,
 }
 
 bool RF_manager::get_has_value() const {
-    check_delayed_assert();
     Receiver* ptr_rec = head;
     while (ptr_rec) {
         if (ptr_rec->get_has_value())

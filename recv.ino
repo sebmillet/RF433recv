@@ -56,7 +56,7 @@ static void recv_ino_assert_failed(int line) {
 // * Automat ******************************************************************
 // * ******* ******************************************************************
 
-auto_t automat_tribit[] = {
+const auto_t automat_tribit[] PROGMEM = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
@@ -156,17 +156,25 @@ void get_boundaries(uint16_t lo_short, uint16_t lo_long,
     lo_long_sup = compact(lo_long + (lo_long >> 1));
 }
 
-void build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
+void my_pgm_memcpy(void *dest, const void *src, size_t n) {
+    const char *walker = (const char*)src;
+    char *d = (char *)dest;
+    for (size_t i = 0; i < n; ++i) {
+        *(d++) = pgm_read_byte(walker++);
+    }
+}
+
+auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
         uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
         uint16_t sep, byte nb_bits) {
-    byte sz = ARRAYSZ(automat_tribit);
 
     assert((hi_short && hi_long) || (!hi_short && !hi_long));
     if (!hi_short && !hi_long) {
         hi_short = lo_short;
         hi_long = lo_long;
     }
+
     duration_t c_lo_short_inf;
     duration_t c_lo_short_sup;
     duration_t c_lo_long_inf;
@@ -196,19 +204,38 @@ void build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
             "c_hi_long_inf  = %5u\n"
             "c_hi_long_sup  = %5u\n",
             c_hi_short_inf, c_hi_short_sup, c_hi_long_inf, c_hi_long_sup);
-
     dbgf(   "c_sep          = %5u\n"
             "c_initseq      = %5u",
             c_sep, c_initseq);
 
-    myset(automat_tribit, sz, 2, c_initseq, compact(65535));
-    myset(automat_tribit, sz, 5, c_lo_short_inf, c_lo_short_sup);
-    myset(automat_tribit, sz, 6, c_lo_long_inf, c_lo_long_sup);
-    myset(automat_tribit, sz, 8, c_hi_long_inf, c_hi_long_sup);
-    myset(automat_tribit, sz, 11, c_hi_short_inf, c_hi_short_sup);
-    myset(automat_tribit, sz, 13, nb_bits, nb_bits);
-    myset(automat_tribit, sz, 15, c_lo_short_inf, c_lo_long_sup);
-    myset(automat_tribit, sz, 17, c_sep, compact(65535));
+    size_t sz = sizeof(automat_tribit);
+    byte nb_elems = ARRAYSZ(automat_tribit);
+
+    auto_t *pauto = (auto_t*)malloc(sz);
+
+    switch (mod) {
+    case RFMOD_TRIBIT:
+        my_pgm_memcpy(pauto, automat_tribit, sz);
+        myset(pauto, nb_elems, 2, c_initseq, compact(65535));
+        myset(pauto, nb_elems, 5, c_lo_short_inf, c_lo_short_sup);
+        myset(pauto, nb_elems, 6, c_lo_long_inf, c_lo_long_sup);
+        myset(pauto, nb_elems, 8, c_hi_long_inf, c_hi_long_sup);
+        myset(pauto, nb_elems, 11, c_hi_short_inf, c_hi_short_sup);
+        myset(pauto, nb_elems, 13, nb_bits, nb_bits);
+        myset(pauto, nb_elems, 15, c_lo_short_inf, c_lo_long_sup);
+        myset(pauto, nb_elems, 17, c_sep, compact(65535));
+        break;
+    case RFMOD_TRIBIT_INVERTED:
+        break;
+
+    case RFMOD_MANCHESTER:
+        break;
+
+    default:
+        assert(false);
+    }
+
+    return pauto;
 }
 
 void my_set_tribit_inverted() {
@@ -235,42 +262,8 @@ void setup() {
             "NO_COMPACT_DURATIONS DEFINED, MEMORY FOOTPRINT WILL BE HIGHER\n"
             "    THIS IS A VALID SITUATION ONLY IF DEBUGGING\n"));
 #endif
-    Serial.print(F("Waiting for signal\n"));
 
-//    dbgf("compact(200) = %u => %u\n", compact(200),
-//            uncompact(compact(200)));
-//    dbgf("compact(800) = %u => %u\n", compact(800),
-//            uncompact(compact(800)));
-//    dbgf("compact(900) = %u => %u\n", compact(900),
-//            uncompact(compact(900)));
-//    dbgf("compact(1500) = %u => %u\n", compact(1500),
-//            uncompact(compact(1500)));
-//    dbgf("compact(5000) = %u => %u\n", compact(5000),
-//            uncompact(compact(5000)));
-//    dbgf("compact(10000) = %u => %u\n", compact(10000),
-//            uncompact(compact(10000)));
-//    dbgf("compact(20000) = %u => %u\n", compact(20000),
-//            uncompact(compact(20000)));
-//    dbgf("compact(30000) = %u => %u\n", compact(30000),
-//            uncompact(compact(30000)));
-//    dbgf("compact(40000) = %u => %u\n", compact(40000),
-//            uncompact(compact(40000)));
-//    dbgf("compact(46079) = %u => %u\n", compact(46079),
-//            uncompact(compact(46079)));
-//    dbgf("compact(46080) = %u => %u\n", compact(46080),
-//            uncompact(compact(46080)));
-//    dbgf("compact(46081) = %u => %u\n", compact(46081),
-//            uncompact(compact(46081)));
-//    dbgf("compact(50000) = %u => %u\n", compact(50000),
-//            uncompact(compact(50000)));
-//    dbgf("compact(60000) = %u => %u\n", compact(60000),
-//            uncompact(compact(60000)));
-//    dbgf("compact(65535) = %u => %u\n", compact(65535),
-//            uncompact(compact(65535)));
-//    while (1)
-//        ;
-
-    build_automat(
+    auto_t *decoder_otio = build_automat(
             RFMOD_TRIBIT, // mod
                     7000, // initseq
                        0, // lo_prefix
@@ -286,9 +279,11 @@ void setup() {
             );
 //    my_set_tribit_inverted();
 
-    rf.register_Receiver(automat_tribit, ARRAYSZ(automat_tribit), 32);
+    rf.register_Receiver(decoder_otio, ARRAYSZ(automat_tribit), 32);
 //    rf.register_Receiver(decoder_tribit_inverted,
 //            ARRAYSZ(decoder_tribit_inverted), 12);
+
+    Serial.print(F("Waiting for signal\n"));
 }
 
 void loop() {
