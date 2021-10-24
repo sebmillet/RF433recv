@@ -115,6 +115,15 @@ struct auto_t {
     byte next_if_w_false;
 };
 
+struct callback_t {
+    const BitVector *pcode;
+    void (*func)(const BitVector *recorded);
+    uint32_t min_delay_between_two_calls;
+    uint32_t last_trigger;
+
+    callback_t *next;
+};
+
 auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
         uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
@@ -128,10 +137,15 @@ class Receiver {
         byte status;
         BitVector *recorded;
         bool has_value;
+
+        callback_t *callback_head;
+
         Receiver *next;
 
         bool w_compare(duration_t minval, duration_t maxval, duration_t val)
             const;
+
+        callback_t* get_callback_tail() const;
 
     public:
         Receiver(auto_t *arg_dec, const unsigned short arg_dec_len,
@@ -148,6 +162,9 @@ class Receiver {
 
         Receiver* get_next() const { return next; }
         void attach(Receiver* ptr_rec);
+
+        void add_callback(callback_t *pcb);
+        void execute_callbacks();
 };
 
 
@@ -181,13 +198,12 @@ class RF_manager {
         RF_manager(byte arg_pin_input_num, byte arg_int_num);
         ~RF_manager();
 
-//        void register_Receiver(auto_t *arg_dec,
-//                const unsigned short arg_dec_len, const byte arg_n);
-
         void register_Receiver(byte mod, uint16_t initseq, uint16_t lo_prefix,
                 uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
                 uint16_t lo_long, uint16_t hi_short, uint16_t hi_long,
-                uint16_t lo_last, uint16_t sep, byte nb_bits);
+                uint16_t lo_last, uint16_t sep, byte nb_bits,
+                void (*func)(const BitVector *recorded) = nullptr,
+                uint32_t min_delay_between_two_calls = 0);
 
         bool get_has_value() const;
         Receiver* get_receiver_that_has_a_value() const;
@@ -196,6 +212,11 @@ class RF_manager {
         void inactivate_interrupts_handler();
 
         void wait_value_available();
+
+        void register_callback(void (*func) (const BitVector *recorded),
+                uint32_t min_delay_between_two_calls);
+
+        void do_events();
 };
 
 #endif // _RF433RECV_H

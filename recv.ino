@@ -51,6 +51,27 @@ static void recv_ino_assert_failed(int line) {
         ;
 }
 
+void callback(const BitVector *recorded) {
+    Serial.print(F("Code received: "));
+    char *printed_code = recorded->to_str();
+    if (printed_code) {
+        Serial.print(recorded->get_nb_bits());
+        Serial.print(F(" bits: ["));
+        Serial.print(printed_code);
+        Serial.print(F("]\n"));
+    }
+    if (printed_code)
+        free(printed_code);
+}
+
+void callback_2(const BitVector *recorded) {
+    Serial.print(F("callback_2 called\n"));
+}
+
+void callback_3(const BitVector *recorded) {
+    Serial.print(F("callback_3 called\n"));
+}
+
 RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
 
 void setup() {
@@ -87,6 +108,11 @@ void setup() {
         23928, // sep
            12  // nb_bits
     );
+    rf.register_callback(callback, 2000);
+
+        // Another style of register_Receiver() call.
+        // The callback function is provided directly.
+
         // FLO/R (rolling code, 72-bit, has a prefix)
     rf.register_Receiver(
         RFMOD_TRIBIT, // mod
@@ -100,8 +126,16 @@ void setup() {
             0, // hi_long  (0 => take lo_long)
          1400, // lo_last
         19324, // sep
-           72  // nb_bits
+           72, // nb_bits
+        callback,
+         2000
     );
+
+        // You can combine defining callbacks within register_Receiver and
+        // calling register_callback().
+        // Remember register_callback() *ALWAYS* applies to the *LAST*
+        // registered receiver.
+
         // OTIO (no rolling code, 32-bit)
     rf.register_Receiver(
         RFMOD_TRIBIT, // mod
@@ -115,33 +149,39 @@ void setup() {
             0, // hi_long  (0 => take lo_long)
           528, // lo_last
          6996, // sep
-           32  // nb_bits
+           32, // nb_bits
+        callback,
+         2000
     );
+    rf.register_callback(callback_2, 1000);
+    rf.register_callback(callback_3, 200);
+
+        // ADF (no rolling code, 32-bit)
+/*    rf.register_Receiver(
+        RFMOD_MANCHESTER, // mod
+         8144, // initseq
+            0, // lo_prefix
+            0, // hi_prefix
+            0, // first_lo_ign
+         1166, // lo_short
+         2330, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+         2284, // lo_last
+         8164, // sep
+           32  // nb_bits
+    );*/
 
     Serial.print(F("Waiting for signal\n"));
+
+    rf.activate_interrupts_handler();
+
+    assert(true); // Written to avoid a warning "unused function"
+                  // FIXME (remove assert management code?)
 }
 
 void loop() {
-
-    rf.wait_value_available();
-
-    Receiver *receiver = rf.get_receiver_that_has_a_value();
-        // Condition must always be met, because we get_has_value() returned
-        // true.
-    assert(receiver);
-    const BitVector *recorded = receiver->get_recorded();
-
-    char *printed_code = recorded->to_str();
-    if (printed_code) {
-        Serial.print(F("Received code: "));
-        Serial.print(recorded->get_nb_bits());
-        Serial.print(F(" bits: ["));
-        Serial.print(printed_code);
-        Serial.print(F("]\n"));
-    }
-    if (printed_code)
-        free(printed_code);
-    receiver->reset();
+    rf.do_events();
 }
 
 // vim: ts=4:sw=4:tw=80:et

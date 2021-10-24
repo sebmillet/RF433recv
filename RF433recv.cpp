@@ -79,7 +79,9 @@ BitVector::~BitVector() {
 }
 
 void BitVector::reset() {
+    assert(array);
     nb_bits = 0;
+    *array = 0;
 }
 
 void BitVector::add_bit(byte v) {
@@ -309,6 +311,24 @@ const auto_t automat_tribit_inverted[] PROGMEM = {
 #define TRIBIT_INVERTED_NB_ELEMS_WITHOUT_PREFIX \
     (TRIBIT_INVERTED_NB_ELEMS_WITH_PREFIX - 4)
 
+const auto_t automat_manchester[] PROGMEM = {
+
+// Below, (T) means 'next status if test returns true' and
+//        (F) means 'next status if test returns false'.
+
+//    WHAT TO DO      MINVAL MAXVAL (T)  (F)
+    { W_WAIT_SIGNAL,        1,     1,  2,   0 }, //  0
+    { W_TERMINATE,          0,     0,  1,  99 }, //  1
+    { W_CHECK_DURATION,   251,   251, 18,   0 }, //  2
+
+    { W_WAIT_SIGNAL,        0,     0,  4,   0 }, //  3
+    { W_CHECK_DURATION,   251,   251,  5,   0 }, //  4
+
+    { W_RESET_BITS,         0,     0,  6,  99 }, //  5
+};
+
+
+
 void myset(auto_t *dec, byte dec_len, byte line, uint16_t minv, uint16_t maxv) {
     assert(line < dec_len);
     assert(dec[line].minval == 251);
@@ -513,6 +533,7 @@ Receiver::Receiver(auto_t *arg_dec, const unsigned short arg_dec_len,
         n(arg_n),
         status(0),
         has_value(false),
+        callback_head(nullptr),
         next(nullptr) {
 
     recorded = new BitVector(n);
@@ -610,6 +631,42 @@ void Receiver::attach(Receiver* ptr_rec) {
     next = ptr_rec;
 }
 
+callback_t* Receiver::get_callback_tail() const {
+    const callback_t* pcb = callback_head;
+    if (pcb) {
+        while (pcb->next)
+            pcb = pcb->next;
+    }
+    return (callback_t*)pcb;
+}
+
+void Receiver::add_callback(callback_t *pcb) {
+    callback_t *pcb_tail = get_callback_tail();
+    if (pcb_tail)
+        pcb_tail->next = pcb;
+    else
+        callback_head = pcb;
+}
+
+void Receiver::execute_callbacks() {
+    uint32_t t0 = millis();
+
+    callback_t *pcb = callback_head;
+    while (pcb) {
+
+        if (!pcb->min_delay_between_two_calls
+                || !pcb->last_trigger
+                || t0 >= pcb->last_trigger + pcb->min_delay_between_two_calls) {
+
+            pcb->last_trigger = t0;
+            pcb->func(recorded);
+        }
+
+        pcb = pcb->next;
+    }
+    reset();
+}
+
 
 // * ********** ***************************************************************
 // * RF_manager ***************************************************************
@@ -640,7 +697,9 @@ Receiver* RF_manager::get_tail() {
 void RF_manager::register_Receiver(byte mod, uint16_t initseq,
         uint16_t lo_prefix, uint16_t hi_prefix, uint16_t first_lo_ign,
         uint16_t lo_short, uint16_t lo_long, uint16_t hi_short,
-        uint16_t hi_long, uint16_t lo_last, uint16_t sep, byte nb_bits) {
+        uint16_t hi_long, uint16_t lo_last, uint16_t sep, byte nb_bits,
+        void (*func)(const BitVector *recorded),
+        uint32_t min_delay_between_two_calls) {
 
     byte decoder_nb_elems;
     auto_t *decoder = build_automat(mod, initseq, lo_prefix, hi_prefix,
@@ -654,6 +713,9 @@ void RF_manager::register_Receiver(byte mod, uint16_t initseq,
     } else {
         tail->attach(ptr_rec);
     }
+
+    if (func)
+        register_callback(func, min_delay_between_two_calls);
 }
 
 bool RF_manager::get_has_value() const {
@@ -699,6 +761,34 @@ void RF_manager::wait_value_available() {
     }
     dbg("mark B");
     inactivate_interrupts_handler();
+}
+
+void RF_manager::do_events() {
+    Receiver* ptr_rec = head;
+    while (ptr_rec) {
+        if (ptr_rec->get_has_value()) {
+            ptr_rec->execute_callbacks();
+            return;
+        }
+        ptr_rec = ptr_rec->get_next();
+    }
+}
+
+void RF_manager::register_callback(void (*func)(const BitVector *recorded),
+        uint32_t min_delay_between_two_calls) {
+
+    Receiver *tail = get_tail();
+    assert(tail); // A bit brutal... caller should know that register_callback
+                  // can be done only after registering a Receiver.
+
+    callback_t *pcb = new callback_t;
+    pcb->pcode = nullptr;
+    pcb->func = func;
+    pcb->min_delay_between_two_calls = min_delay_between_two_calls;
+    pcb->last_trigger = 0;
+    pcb->next = nullptr;
+
+    tail->add_callback(pcb);
 }
 
 byte RF_manager::pin_input_num = 255;
