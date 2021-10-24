@@ -29,7 +29,7 @@
 #include <stdarg.h>
 
 static char buffer[120];
-static char progmem_reading_buffer[70];
+static char progmem_reading_buffer[120];
 
 #ifdef __arm__
 // should use uinstd.h to define sbrk but Due causes a conflict

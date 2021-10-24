@@ -95,6 +95,10 @@ class BitVector {
 duration_t compact(uint16_t u);
 uint16_t uncompact(duration_t b);
 
+#define RFMOD_TRIBIT          0
+#define RFMOD_TRIBIT_INVERTED 1
+#define RFMOD_MANCHESTER      2
+
 #define W_WAIT_SIGNAL    0
 #define W_TERMINATE      1
 #define W_CHECK_DURATION 2
@@ -110,6 +114,11 @@ struct auto_t {
     byte next_if_w_true;
     byte next_if_w_false;
 };
+
+auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
+        uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
+        uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
+        uint16_t sep, byte nb_bits, byte *pnb_elems);
 
 class Receiver {
     private:
@@ -172,8 +181,14 @@ class RF_manager {
         RF_manager(byte arg_pin_input_num, byte arg_int_num);
         ~RF_manager();
 
-        void register_Receiver(auto_t *arg_dec,
-                const unsigned short arg_dec_len, const byte arg_n);
+//        void register_Receiver(auto_t *arg_dec,
+//                const unsigned short arg_dec_len, const byte arg_n);
+
+        void register_Receiver(byte mod, uint16_t initseq, uint16_t lo_prefix,
+                uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
+                uint16_t lo_long, uint16_t hi_short, uint16_t hi_long,
+                uint16_t lo_last, uint16_t sep, byte nb_bits);
+
         bool get_has_value() const;
         Receiver* get_receiver_that_has_a_value() const;
 
