@@ -93,6 +93,7 @@ void setup() {
  *   RF433any (https://github.com/sebmillet/RF433any)
 */
 
+/*
         // FLO (no rolling code, 12-bit)
     rf.register_Receiver(
         RFMOD_TRIBIT_INVERTED, // mod
@@ -155,9 +156,10 @@ void setup() {
     );
     rf.register_callback(callback_2, 1000);
     rf.register_callback(callback_3, 200);
+*/
 
         // ADF (no rolling code, 32-bit)
-/*    rf.register_Receiver(
+    rf.register_Receiver(
         RFMOD_MANCHESTER, // mod
          8144, // initseq
             0, // lo_prefix
@@ -169,8 +171,10 @@ void setup() {
             0, // hi_long  (0 => take lo_long)
          2284, // lo_last
          8164, // sep
-           32  // nb_bits
-    );*/
+           32, // nb_bits
+        callback,
+         2000
+    );
 
     Serial.print(F("Waiting for signal\n"));
 
@@ -181,7 +185,13 @@ void setup() {
 }
 
 void loop() {
+#ifdef SIMULATE_INTERRUPTS
+    rf.wait_value_available();
+    const Receiver* rec = rf.get_receiver_that_has_a_value();
+    callback(rec->get_recorded());
+#else
     rf.do_events();
+#endif
 }
 
 // vim: ts=4:sw=4:tw=80:et

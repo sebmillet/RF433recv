@@ -26,7 +26,7 @@
 
     // The possibility *not* to compact durations is available for debugging
     // purposes.
-//#define NO_COMPACT_DURATIONS
+#define NO_COMPACT_DURATIONS
 
 #ifdef NO_COMPACT_DURATIONS
 #pragma message("NO_COMPACT_DURATIONS MACRO DEFINED")

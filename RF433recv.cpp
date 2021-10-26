@@ -319,15 +319,44 @@ const auto_t automat_manchester[] PROGMEM = {
 //    WHAT TO DO      MINVAL MAXVAL (T)  (F)
     { W_WAIT_SIGNAL,        1,     1,  2,   0 }, //  0
     { W_TERMINATE,          0,     0,  1,  99 }, //  1
-    { W_CHECK_DURATION,   251,   251, 18,   0 }, //  2
+    { W_CHECK_DURATION,  4000, 65535,  3,   0 }, //  2
 
     { W_WAIT_SIGNAL,        0,     0,  4,   0 }, //  3
-    { W_CHECK_DURATION,   251,   251,  5,   0 }, //  4
+    { W_CHECK_DURATION,   700,  1400,  5,   0 }, //  4
+    { W_WAIT_SIGNAL,        1,     1,  6,   0 }, //  5
+    { W_CHECK_DURATION,   700,  1400,  7,   2 }, //  6
 
-    { W_RESET_BITS,         0,     0,  6,  99 }, //  5
+    { W_RESET_BITS,         0,     0,  8,  99 }, //  7
+
+    { W_WAIT_SIGNAL,        0,     0,  9,   0 }, //  8
+    { W_CHECK_DURATION,   700,  1600, 10,   0 }, //  9
+
+    { W_WAIT_SIGNAL,        1,     1, 11,   0 }, // 10
+    { W_CHECK_DURATION,   700,  1700, 13,  12 }, // 11
+    { W_CHECK_DURATION,  1700,  2800, 15,   2 }, // 12
+
+    { W_ADD_ZERO,           0,     0, 14,   2 }, // 13
+    { W_CHECK_BITS,        32,    32,  1,   8 }, // 14
+
+    { W_ADD_ZERO,           0,     0, 16,   2 }, // 15
+    { W_CHECK_BITS,        32,    32,  1,  17 }, // 16
+    { W_WAIT_SIGNAL,        0,     0, 18,   0 }, // 17
+    { W_CHECK_DURATION,   700,  1600, 20,  19 }, // 18
+    { W_CHECK_DURATION,  1700,  2800, 27,   0 }, // 19
+
+    { W_ADD_ONE,            1,     1, 21,   0 }, // 20
+    { W_CHECK_BITS,        32,    32,  1,  22 }, // 21
+    { W_WAIT_SIGNAL,        1,     1, 23,   0 }, // 22
+    { W_CHECK_DURATION,   700,  1600, 24,   2 }, // 23
+    { W_WAIT_SIGNAL,        0,     0, 25,   0 }, // 24
+    { W_CHECK_DURATION,   700,  1600, 20,  26 }, // 25
+    { W_CHECK_DURATION,  1700,  2800, 27,   0 }, // 26
+
+    { W_ADD_ONE,            0,     0, 28,   0 }, // 27
+    { W_CHECK_BITS,        32,    32,  1,  10 }, // 28
 };
-
-
+#define MANCHESTER_NB_BYTES_WITHOUT_PREFIX (sizeof(automat_manchester))
+#define MANCHESTER_NB_ELEMS_WITHOUT_PREFIX (ARRAYSZ(automat_manchester))
 
 void myset(auto_t *dec, byte dec_len, byte line, uint16_t minv, uint16_t maxv) {
     assert(line < dec_len);
@@ -343,13 +372,15 @@ void myset(auto_t *dec, byte dec_len, byte line, uint16_t minv, uint16_t maxv) {
     // identified as "short versus long" as follows:
     //   short <=> duration in [short / 4, avg(short, long)]
     //   long  <=> duration in [avg(short, long) + 1, long * 1.5]
+    // (The use of compact numbers will also modify these bounadires a bit, but
+    // this is another story.)
     //
     // This is a bit laxist. Stricter ranges could be:
     //   short <=> duration in [short * 0.75, short * 1.25]
     //   long  <=> duration in [long * 0.75, long * 1.25]
     //
-    // As the author prefers the laxist way, allowing it would require an
-    // additional argument in build_automat(), like for example...
+    // As the author prefers the laxist way, providing stricter decoding would
+    // require an additional argument in build_automat(), like for example...
     //   enum class DecodeMood {LAXIST, STRICT};
     // ...to change the calculation of boundaries accordingly.
     //
@@ -498,6 +529,16 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         break;
 
     case RFMOD_MANCHESTER:
+
+        assert(!lo_prefix);
+
+        sz = MANCHESTER_NB_BYTES_WITHOUT_PREFIX;
+        *pnb_elems = MANCHESTER_NB_ELEMS_WITHOUT_PREFIX;
+
+        pauto = (auto_t*)malloc(sz);
+
+        my_pgm_memcpy(pauto, automat_manchester, sz);
+
         break;
 
     default:
@@ -506,20 +547,6 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
 
     return pauto;
 }
-
-//void my_set_tribit_inverted() {
-//    byte sz = ARRAYSZ(decoder_tribit_inverted);
-//    myset(decoder_tribit_inverted, sz, 2, 12000, 65535);
-//    myset(decoder_tribit_inverted, sz, 4, 200, 800);
-//    myset(decoder_tribit_inverted, sz, 7, 200, 800);
-//    myset(decoder_tribit_inverted, sz, 8, 900, 1500);
-//    myset(decoder_tribit_inverted, sz, 10, 900, 1500);
-//    myset(decoder_tribit_inverted, sz, 13, 200, 800);
-//    myset(decoder_tribit_inverted, sz, 15, 12, 12, 1);
-//    myset(decoder_tribit_inverted, sz, 17, 12000, 65535);
-
-//}
-
 
 
 // * ******** *****************************************************************
@@ -752,14 +779,12 @@ void RF_manager::inactivate_interrupts_handler() {
 
 void RF_manager::wait_value_available() {
     activate_interrupts_handler();
-    dbg("mark A");
     while (!get_has_value()) {
         delay(1);
 #ifdef SIMULATE_INTERRUPTS
         handle_int_receive();
 #endif
     }
-    dbg("mark B");
     inactivate_interrupts_handler();
 }
 
@@ -802,56 +827,35 @@ byte RF_manager::obj_count = 0;
 
 #ifdef SIMULATE_INTERRUPTS
 uint16_t timings[] = {
-  0   ,  7064,
-  1160,   632,
-   456,  1344,
-  1156,   656,
-  1156,   660,
-   448,  1376,
-  1148,   684,
-   456,  1388,
-  1148,   652,
-   456,  1336,
-   452,  1340,
-  1152,   652,
-  1148,   672,
-   456,  1372,
-  1156,   692,
-   436,  1412,
-  1124,   676,
-   436,  1348,
-  1132,   656,
-  1148,   660,
-   448,  1372,
-  1148,   680,
-  1140,   688,
-   440,  1404,
-  1140,   664,
-   436,  1364,
-   424,  1376,
-   412,  1392,
-   412,  1396,
-   416,  1404,
-   416,  1412,
-   420,  1424,
-   420,  1348,
-   416,  7136,
-  1072,   720,
-     0, 23916,
-   716,   620,
-  1376,  1312,
-   688,   636,
-  1380,  1300,
-   720,  1280,
-   724,  1292,
-   712,  1288,
-   716,   608,
-  1368,  1320,
-   676,  1352,
-   644,   684,
-  1328,  1368,
-   648, 23924,
-     0
+    0,  5348,
+    1132,  1320,
+    1156,  2560,
+    2392,  1328,
+    1088,  1376,
+    1088,  1340,
+    1136,  1320,
+    1200,  1280,
+    1176,  1280,
+    1196,  1248,
+    1108,  1328,
+    1188,  1316,
+    1080,  1368,
+    1100,  1348,
+    1144,  2520,
+    1260,  1228,
+    1204,  1244,
+    2336,  1404,
+    1144,  1292,
+    1156,  2544,
+    2480,  1232,
+    1092,  2592,
+    2344,  2584,
+    2372,  1368,
+    1108,  2548,
+    1176,  1304,
+    1204,  1236,
+    2368,  5360,
+    1204,  1244
 };
 const size_t timings_len = sizeof(timings) / sizeof(*timings);
 byte timings_index = 0;
