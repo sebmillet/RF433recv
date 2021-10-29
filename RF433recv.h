@@ -28,9 +28,8 @@
     // purposes.
 #define NO_COMPACT_DURATIONS
 
-#ifdef NO_COMPACT_DURATIONS
-#pragma message("NO_COMPACT_DURATIONS MACRO DEFINED")
-#endif
+    // Don't uncomment this unless you know what you are doing
+//#define NO_PROGMEM_FOR_AUTOMAT_TEMPLATES
 
 #ifdef DEBUG
 

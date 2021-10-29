@@ -206,8 +206,14 @@ uint16_t uncompact(duration_t b) {
 // * auto_t *******************************************************************
 // * ****** *******************************************************************
 
+#ifdef NO_PROGMEM_FOR_AUTOMAT_TEMPLATES
+#define MY_PROGMEM
+#else
+#define MY_PROGMEM PROGMEM
+#endif
+
     // The below one corresponds to RFMOD_TRIBIT
-const auto_t automat_tribit[] PROGMEM = {
+const auto_t automat_tribit[] MY_PROGMEM = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
@@ -265,7 +271,7 @@ const auto_t automat_tribit[] PROGMEM = {
 // IMPORTANT - FIXME FIXME FIXME
 // ***NOT TESTED WITH A PREFIX***
 // IN REAL CONDITIONS, TESTED ONLY *WITHOUT* PREFIX
-const auto_t automat_tribit_inverted[] PROGMEM = {
+const auto_t automat_tribit_inverted[] MY_PROGMEM = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
@@ -311,7 +317,7 @@ const auto_t automat_tribit_inverted[] PROGMEM = {
 #define TRIBIT_INVERTED_NB_ELEMS_WITHOUT_PREFIX \
     (TRIBIT_INVERTED_NB_ELEMS_WITH_PREFIX - 4)
 
-const auto_t automat_manchester[] PROGMEM = {
+const auto_t automat_manchester[] MY_PROGMEM = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
@@ -333,7 +339,7 @@ const auto_t automat_manchester[] PROGMEM = {
 
     { W_WAIT_SIGNAL,        1,     1, 11,   0 }, // 10
     { W_CHECK_DURATION,   700,  1700, 13,  12 }, // 11
-    { W_CHECK_DURATION,  1700,  2800, 15,   2 }, // 12
+    { W_CHECK_DURATION,  1700,  2800, 15,  29 }, // 12
 
     { W_ADD_ZERO,           0,     0, 14,   2 }, // 13
     { W_CHECK_BITS,        32,    32,  1,   8 }, // 14
@@ -354,6 +360,10 @@ const auto_t automat_manchester[] PROGMEM = {
 
     { W_ADD_ONE,            0,     0, 28,   0 }, // 27
     { W_CHECK_BITS,        32,    32,  1,  10 }, // 28
+
+    { W_CHECK_BITS,        31,    31, 30,   2 }, // 29
+    { W_CHECK_DURATION,  1700, 65535, 31,   2 }, // 30
+    { W_ADD_ZERO,           0,     0,  1,  99 }, // 31
 };
 #define MANCHESTER_NB_BYTES_WITHOUT_PREFIX (sizeof(automat_manchester))
 #define MANCHESTER_NB_ELEMS_WITHOUT_PREFIX (ARRAYSZ(automat_manchester))
@@ -396,11 +406,15 @@ void get_boundaries(uint16_t lo_short, uint16_t lo_long,
 }
 
 void my_pgm_memcpy(void *dest, const void *src, size_t n) {
+#ifdef NO_PROGMEM_FOR_AUTOMAT_TEMPLATES
+    memcpy(dest, src, n);
+#else
     const char *walker = (const char*)src;
     char *d = (char *)dest;
     for (size_t i = 0; i < n; ++i) {
         *(d++) = pgm_read_byte(walker++);
     }
+#endif
 }
 
 auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
@@ -501,6 +515,8 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         break;
 
     case RFMOD_TRIBIT_INVERTED:
+
+// * AS WRITTEN EARLIER, NOT TESTED WITH A PREFIX *
 
         sz = (lo_prefix ? TRIBIT_INVERTED_NB_BYTES_WITH_PREFIX
                 : TRIBIT_INVERTED_NB_BYTES_WITHOUT_PREFIX);
@@ -827,35 +843,37 @@ byte RF_manager::obj_count = 0;
 
 #ifdef SIMULATE_INTERRUPTS
 uint16_t timings[] = {
-    0,  5348,
-    1132,  1320,
-    1156,  2560,
+
+    0 ,  5296,
+    1148,  1312,
+    1136,  2524,
     2392,  1328,
-    1088,  1376,
-    1088,  1340,
-    1136,  1320,
-    1200,  1280,
-    1176,  1280,
-    1196,  1248,
-    1108,  1328,
-    1188,  1316,
-    1080,  1368,
-    1100,  1348,
-    1144,  2520,
-    1260,  1228,
-    1204,  1244,
-    2336,  1404,
-    1144,  1292,
-    1156,  2544,
-    2480,  1232,
-    1092,  2592,
-    2344,  2584,
-    2372,  1368,
-    1108,  2548,
-    1176,  1304,
+    1152,  1312,
     1204,  1236,
-    2368,  5360,
-    1204,  1244
+    1200,  1252,
+    1124,  1320,
+    1148,  1320,
+    1128,  1328,
+    1156,  1292,
+    1128,  1320,
+    1164,  1312,
+    1108,  1352,
+    1120,  2536,
+    1164,  1280,
+    1196,  1288,
+    2392,  1320,
+    1184,  1272,
+    1172,  2500,
+    2460,  1268,
+    1136,  2540,
+    2440,  2532,
+    2400,  1308,
+    1156,  2508,
+    1204,  1252,
+    1164,  1312,
+    2416,  5308,
+    2416,  5308
+
 };
 const size_t timings_len = sizeof(timings) / sizeof(*timings);
 byte timings_index = 0;

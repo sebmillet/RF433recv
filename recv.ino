@@ -93,7 +93,6 @@ void setup() {
  *   RF433any (https://github.com/sebmillet/RF433any)
 */
 
-/*
         // FLO (no rolling code, 12-bit)
     rf.register_Receiver(
         RFMOD_TRIBIT_INVERTED, // mod
@@ -156,7 +155,6 @@ void setup() {
     );
     rf.register_callback(callback_2, 1000);
     rf.register_callback(callback_3, 200);
-*/
 
         // ADF (no rolling code, 32-bit)
     rf.register_Receiver(
@@ -189,6 +187,8 @@ void loop() {
     rf.wait_value_available();
     const Receiver* rec = rf.get_receiver_that_has_a_value();
     callback(rec->get_recorded());
+    while (1)
+        ;
 #else
     rf.do_events();
 #endif
