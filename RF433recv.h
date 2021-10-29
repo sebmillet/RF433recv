@@ -52,22 +52,38 @@
 class BitVector {
     private:
         uint8_t* array;
-        const byte target_nb_bits;
-        const byte target_nb_bytes;
+        byte target_nb_bits;
+        byte target_nb_bytes;
         byte nb_bits;
     public:
         BitVector(byte arg_target_nb_bits);
-        virtual ~BitVector();
+        ~BitVector();
 
-        virtual void reset();
+        BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1);
+        BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
+                byte b2);
+        BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
+                byte b2, byte b3);
+        BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
+                byte b2, byte b3, byte b4);
+        BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
+                byte b2, byte b3, byte b4, byte b5);
 
-        virtual void add_bit(byte v);
+        void prepare_BitVector_construction(short arg_nb_bits,
+                short arg_nb_bytes, short n);
 
-        virtual int get_nb_bits() const;
-        virtual byte get_nb_bytes() const;
-        virtual byte get_nth_byte(byte n) const;
+        void reset();
 
-        virtual char *to_str() const;
+        void add_bit(byte v);
+
+        int get_nb_bits() const;
+        byte get_nb_bytes() const;
+        byte get_nth_bit(byte n) const;
+        byte get_nth_byte(byte n) const;
+
+        char *to_str() const;
+
+        short cmp(const BitVector *p) const;
 };
 
 
@@ -213,7 +229,8 @@ class RF_manager {
         void wait_value_available();
 
         void register_callback(void (*func) (const BitVector *recorded),
-                uint32_t min_delay_between_two_calls);
+                uint32_t min_delay_between_two_calls,
+                const BitVector *pcode = nullptr);
 
         void do_events();
 };

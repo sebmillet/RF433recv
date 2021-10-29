@@ -78,6 +78,62 @@ BitVector::~BitVector() {
         free(array);
 }
 
+void BitVector::prepare_BitVector_construction(short arg_nb_bits,
+        short arg_nb_bytes, short n) {
+    assert(arg_nb_bits > 0);
+    assert((arg_nb_bits + 7) >> 3 == arg_nb_bytes);
+    assert(arg_nb_bytes == n);
+    array = (uint8_t*)malloc(arg_nb_bytes);
+    target_nb_bytes = arg_nb_bytes;
+    nb_bits = arg_nb_bits;
+}
+
+BitVector::BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0,
+        byte b1) {
+    prepare_BitVector_construction(arg_nb_bits, arg_nb_bytes, 2);
+    array[1] = b0;
+    array[0] = b1;
+}
+
+BitVector::BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
+        byte b2) {
+    prepare_BitVector_construction(arg_nb_bits, arg_nb_bytes, 3);
+    array[2] = b0;
+    array[1] = b1;
+    array[0] = b2;
+}
+
+BitVector::BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
+        byte b2, byte b3) {
+    prepare_BitVector_construction(arg_nb_bits, arg_nb_bytes, 4);
+    array[3] = b0;
+    array[2] = b1;
+    array[1] = b2;
+    array[0] = b3;
+}
+
+BitVector::BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
+        byte b2, byte b3, byte b4) {
+    prepare_BitVector_construction(arg_nb_bits, arg_nb_bytes, 5);
+    array[4] = b0;
+    array[3] = b1;
+    array[2] = b2;
+    array[1] = b3;
+    array[0] = b4;
+}
+
+BitVector::BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
+        byte b2, byte b3, byte b4, byte b5) {
+    prepare_BitVector_construction(arg_nb_bits, arg_nb_bytes, 6);
+    array[5] = b0;
+    array[4] = b1;
+    array[3] = b2;
+    array[2] = b3;
+    array[1] = b4;
+    array[0] = b5;
+}
+
+
 void BitVector::reset() {
     assert(array);
     nb_bits = 0;
@@ -109,6 +165,14 @@ int BitVector::get_nb_bits() const {
 
 byte BitVector::get_nb_bytes() const {
     return (nb_bits + 7) >> 3;
+}
+
+    // Bit numbering starts at 0
+byte BitVector::get_nth_bit(byte n) const {
+    assert(n >= 0 && n < nb_bits);
+    byte index = (n >> 3);
+    byte bitread = (1 << (n & 0x07));
+    return !!(array[index] & bitread);
 }
 
     // Bit numbering starts at 0
@@ -147,6 +211,27 @@ char* BitVector::to_str() const {
     assert(j <= nb_bytes * 3);
 
     return ret;
+}
+
+short BitVector::cmp(const BitVector *p) const {
+    assert(p);
+    short cmp_nb_bits = (get_nb_bits() > p->get_nb_bits());
+    if (!cmp_nb_bits)
+        cmp_nb_bits = -(get_nb_bits() < p->get_nb_bits());
+
+    if (cmp_nb_bits)
+        return cmp_nb_bits;
+
+    for (int i = get_nb_bits() - 1; i >= 0; --i) {
+        byte v1 = get_nth_bit(i);
+        byte v2 = p->get_nth_bit(i);
+        if (v1 > v2)
+            return 1;
+        if (v1 < v2)
+            return -1;
+    }
+
+    return 0;
 }
 
 
@@ -701,8 +786,10 @@ void Receiver::execute_callbacks() {
                 || !pcb->last_trigger
                 || t0 >= pcb->last_trigger + pcb->min_delay_between_two_calls) {
 
-            pcb->last_trigger = t0;
-            pcb->func(recorded);
+            if (!pcb->pcode || !pcb->pcode->cmp(recorded)) {
+                pcb->last_trigger = t0;
+                pcb->func(recorded);
+            }
         }
 
         pcb = pcb->next;
@@ -816,14 +903,14 @@ void RF_manager::do_events() {
 }
 
 void RF_manager::register_callback(void (*func)(const BitVector *recorded),
-        uint32_t min_delay_between_two_calls) {
+        uint32_t min_delay_between_two_calls, const BitVector *pcode) {
 
     Receiver *tail = get_tail();
     assert(tail); // A bit brutal... caller should know that register_callback
                   // can be done only after registering a Receiver.
 
     callback_t *pcb = new callback_t;
-    pcb->pcode = nullptr;
+    pcb->pcode = pcode;
     pcb->func = func;
     pcb->min_delay_between_two_calls = min_delay_between_two_calls;
     pcb->last_trigger = 0;

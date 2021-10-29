@@ -72,6 +72,14 @@ void callback_3(const BitVector *recorded) {
     Serial.print(F("callback_3 called\n"));
 }
 
+void callback_man_1(const BitVector *recorded) {
+    Serial.print(F("Manchester code 1 received\n"));
+}
+
+void callback_man_2(const BitVector *recorded) {
+    Serial.print(F("Manchester code 2 received\n"));
+}
+
 RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
 
 void setup() {
@@ -93,6 +101,8 @@ void setup() {
  *   RF433any (https://github.com/sebmillet/RF433any)
 */
 
+// First style: use register_callback() *after* registering receiver
+
         // FLO (no rolling code, 12-bit)
     rf.register_Receiver(
         RFMOD_TRIBIT_INVERTED, // mod
@@ -110,8 +120,7 @@ void setup() {
     );
     rf.register_callback(callback, 2000);
 
-        // Another style of register_Receiver() call.
-        // The callback function is provided directly.
+// Second style: provide a callback at the time the receiver is registered
 
         // FLO/R (rolling code, 72-bit, has a prefix)
     rf.register_Receiver(
@@ -131,10 +140,10 @@ void setup() {
          2000
     );
 
-        // You can combine defining callbacks within register_Receiver and
-        // calling register_callback().
-        // Remember register_callback() *ALWAYS* applies to the *LAST*
-        // registered receiver.
+// You can combine defining callbacks within register_Receiver and calling
+// register_callback().
+// Remember register_callback() *ALWAYS* applies to the *LAST* registered
+// receiver.
 
         // OTIO (no rolling code, 32-bit)
     rf.register_Receiver(
@@ -156,6 +165,9 @@ void setup() {
     rf.register_callback(callback_2, 1000);
     rf.register_callback(callback_3, 200);
 
+// The advantage of register_callback is that you can provide a code, to execute
+// callback function only for a specific received code.
+
         // ADF (no rolling code, 32-bit)
     rf.register_Receiver(
         RFMOD_MANCHESTER, // mod
@@ -169,10 +181,12 @@ void setup() {
             0, // hi_long  (0 => take lo_long)
          2284, // lo_last
          8164, // sep
-           32, // nb_bits
-        callback,
-         2000
+           32  // nb_bits
     );
+    rf.register_callback(callback_man_1, 2000,
+            new BitVector(32, 4, 0x40, 0x03, 0x89, 0x4e));
+    rf.register_callback(callback_man_2, 2000,
+            new BitVector(32, 4, 0x40, 0x03, 0x89, 0x4D));
 
     Serial.print(F("Waiting for signal\n"));
 
