@@ -202,13 +202,21 @@ class RF_manager {
         static byte pin_input_num;
         static Receiver *head;
 
+        static volatile uint16_t IH_wait_free_last16;
+        static volatile short IH_wait_free_count_ok;
+
         byte int_num;
+
+        bool opt_wait_free_433;
+        bool handle_int_receive_interrupts_is_set;
 
     public:
 
         static byte get_pin_input_num() { return pin_input_num; }
         static Receiver* get_head() { return head; }
         static Receiver* get_tail();
+
+        static void ih_handle_interrupt_wait_free();
 
         RF_manager(byte arg_pin_input_num, byte arg_int_num);
         ~RF_manager();
@@ -233,6 +241,9 @@ class RF_manager {
                 const BitVector *pcode = nullptr);
 
         void do_events();
+
+        void set_opt_wait_free_433(bool v) { opt_wait_free_433 = v; }
+        void wait_free_433();
 };
 
 #endif // _RF433RECV_H

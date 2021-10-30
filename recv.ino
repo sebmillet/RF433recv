@@ -190,6 +190,7 @@ void setup() {
 
     Serial.print(F("Waiting for signal\n"));
 
+    rf.set_opt_wait_free_433(true);
     rf.activate_interrupts_handler();
 
     assert(true); // Written to avoid a warning "unused function"

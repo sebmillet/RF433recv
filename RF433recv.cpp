@@ -803,7 +803,9 @@ void Receiver::execute_callbacks() {
 // * ********** ***************************************************************
 
 RF_manager::RF_manager(byte arg_pin_input_num, byte arg_int_num):
-        int_num(arg_int_num) {
+        int_num(arg_int_num),
+        opt_wait_free_433(false),
+        handle_int_receive_interrupts_is_set(false) {
     pin_input_num = arg_pin_input_num;
     head = nullptr;
     ++obj_count;
@@ -869,15 +871,28 @@ Receiver* RF_manager::get_receiver_that_has_a_value() const {
 }
 
 void RF_manager::activate_interrupts_handler() {
+
+    if (handle_int_receive_interrupts_is_set)
+        return;
+
+    handle_int_receive_interrupts_is_set = true;
+
 #ifndef SIMULATE_INTERRUPTS
     attachInterrupt(int_num, &handle_int_receive, CHANGE);
 #endif
+
 }
 
 void RF_manager::inactivate_interrupts_handler() {
+
+    if (!handle_int_receive_interrupts_is_set)
+        return;
+
 #ifndef SIMULATE_INTERRUPTS
     detachInterrupt(int_num);
 #endif
+
+    handle_int_receive_interrupts_is_set = false;
 }
 
 void RF_manager::wait_value_available() {
@@ -892,13 +907,45 @@ void RF_manager::wait_value_available() {
 }
 
 void RF_manager::do_events() {
+    bool has_waited_free_433 = false;
+
     Receiver* ptr_rec = head;
     while (ptr_rec) {
         if (ptr_rec->get_has_value()) {
+
+            if (opt_wait_free_433) {
+                if (!has_waited_free_433) {
+                    wait_free_433();
+                    has_waited_free_433 = true;
+                }
+            }
+
             ptr_rec->execute_callbacks();
-            return;
+
         }
         ptr_rec = ptr_rec->get_next();
+    }
+
+        // Why reset everything when wait_free_433 is executed?
+        // Because the timings are then completely messed up, and the ongoing
+        // recording already done by any open receiver must be restarted from
+        // scratch.
+    if (has_waited_free_433) {
+
+            // IMPORTANT
+            // We have to clear interrupts, because an interrupt could occur
+            // while we are resetting receivers, leading to unpredictable state
+            // and behavior.
+        cli();
+
+        Receiver* ptr_rec = head;
+        while (ptr_rec) {
+            ptr_rec->reset();
+            ptr_rec = ptr_rec->get_next();
+        }
+
+        sei();
+
     }
 }
 
@@ -919,9 +966,57 @@ void RF_manager::register_callback(void (*func)(const BitVector *recorded),
     tail->add_callback(pcb);
 }
 
+#if defined(ESP8266)
+IRAM_ATTR
+#endif
+void RF_manager::ih_handle_interrupt_wait_free() {
+    static unsigned long last_t = 0;
+
+    const unsigned long t = micros();
+    unsigned long d = t - last_t;
+    last_t = t;
+
+    if (d > 65535)
+        d = 65535;
+
+    short new_bit = (d >= 200 && d <= 25000);
+    short old_bit = !!(IH_wait_free_last16 & 0x8000);
+    IH_wait_free_last16 <<= 1;
+    IH_wait_free_last16 |= new_bit;
+
+    IH_wait_free_count_ok += new_bit;
+    IH_wait_free_count_ok -= old_bit;
+}
+
+void RF_manager::wait_free_433() {
+
+    bool save_handle_int_receive_interrupts_is_set =
+        handle_int_receive_interrupts_is_set;
+
+    inactivate_interrupts_handler();
+
+    IH_wait_free_last16 = (uint16_t)0xffff;
+    IH_wait_free_count_ok = 16;
+
+    attachInterrupt(int_num, &ih_handle_interrupt_wait_free, CHANGE);
+
+        // 75% of the last 16 durations must be in the interval [200, 25000]
+        // (that is, 12 out of 16).
+    while (IH_wait_free_count_ok >= 12)
+        ;
+
+    detachInterrupt(int_num);
+
+    if (save_handle_int_receive_interrupts_is_set)
+        activate_interrupts_handler();
+}
+
 byte RF_manager::pin_input_num = 255;
 Receiver* RF_manager::head = nullptr;
 byte RF_manager::obj_count = 0;
+
+volatile short RF_manager::IH_wait_free_count_ok;
+volatile uint16_t RF_manager::IH_wait_free_last16;
 
 
 // * ***************** ********************************************************
