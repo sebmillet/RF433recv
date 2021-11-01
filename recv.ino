@@ -184,9 +184,9 @@ void setup() {
            32  // nb_bits
     );
     rf.register_callback(callback_man_1, 2000,
-            new BitVector(32, 4, 0x40, 0x03, 0x89, 0x4e));
+            new BitVector(32, 4, 0x51, 0x14, 0x9A, 0x5F));
     rf.register_callback(callback_man_2, 2000,
-            new BitVector(32, 4, 0x40, 0x03, 0x89, 0x4D));
+            new BitVector(32, 4, 0x51, 0x14, 0x9A, 0x5E));
 
     Serial.print(F("Waiting for signal\n"));
 
