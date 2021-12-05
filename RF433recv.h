@@ -21,8 +21,29 @@
 #ifndef _RF433RECV_H
 #define _RF433RECV_H
 
+// ****************************************************************************
+// RF433RECV_TESTPLAN *********************************************************
+#if RF433RECV_TESTPLAN == 1
+
+//#define DEBUG
+#define SIMULATE_INTERRUPTS
+
+#else // RF433RECV_TESTPLAN
+
+#ifdef RF433RECV_TESTPLAN
+#error "RF433RECV_TESTPLAN macro has an illegal value."
+#endif
+// RF433RECV_TESTPLAN *********************************************************
+// ****************************************************************************
+
+// It is OK to update the below, because if this code is compiled, then we are
+// not in the test plan.
+
 //#define DEBUG
 //#define SIMULATE_INTERRUPTS
+
+#endif // RF433ANY_TESTPLAN
+
 
     // The possibility *not* to compact durations is available for debugging
     // purposes.

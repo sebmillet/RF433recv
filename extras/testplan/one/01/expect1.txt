@@ -1,0 +1,2 @@
+Code received: 12 bits: [07 51]
+Code received: 16 bits: [ad 15]
