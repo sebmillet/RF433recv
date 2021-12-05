@@ -26,7 +26,7 @@
 
     // The possibility *not* to compact durations is available for debugging
     // purposes.
-#define NO_COMPACT_DURATIONS
+//#define NO_COMPACT_DURATIONS
 
     // Don't uncomment this unless you know what you are doing
 //#define NO_PROGMEM_FOR_AUTOMAT_TEMPLATES

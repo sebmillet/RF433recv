@@ -1,4 +1,4 @@
-// recv.ino
+// 01_recv.ino
 
 // Example sketch that comes along with RF433recv library
 // Simply receives codes
@@ -43,7 +43,7 @@
 
 static void recv_ino_assert_failed(int line) {
 #ifdef ASSERT_OUTPUT_TO_SERIAL
-    Serial.print(F("\nrecv.ino:"));
+    Serial.print(F("\n01_recv.ino:"));
     Serial.print(line);
     Serial.println(F(": assertion failed, aborted."));
 #endif
@@ -104,41 +104,21 @@ void setup() {
 // First style: use register_callback() *after* registering receiver
 
         // FLO (no rolling code, 12-bit)
-    rf.register_Receiver(
-        RFMOD_TRIBIT_INVERTED, // mod
-        23936, // initseq
-            0, // lo_prefix
-            0, // hi_prefix
-          684, // first_lo_ign
-          684, // lo_short
-         1360, // lo_long
-            0, // hi_short (0 => take lo_short)
-            0, // hi_long  (0 => take lo_long)
-          676, // lo_last
-        23928, // sep
-           12  // nb_bits
-    );
-    rf.register_callback(callback, 2000);
-
-// Second style: provide a callback at the time the receiver is registered
-
-        // FLO/R (rolling code, 72-bit, has a prefix)
-    rf.register_Receiver(
-        RFMOD_TRIBIT, // mod
-        17888, // initseq
-         1432, // lo_prefix
-         1424, // hi_prefix
-            0, // first_lo_ign
-          474, // lo_short
-          952, // lo_long
-            0, // hi_short (0 => take lo_short)
-            0, // hi_long  (0 => take lo_long)
-         1400, // lo_last
-        19324, // sep
-           72, // nb_bits
-        callback,
-         2000
-    );
+//    rf.register_Receiver(
+//        RFMOD_TRIBIT_INVERTED, // mod
+//        23936, // initseq
+//            0, // lo_prefix
+//            0, // hi_prefix
+//          684, // first_lo_ign
+//          684, // lo_short
+//         1360, // lo_long
+//            0, // hi_short (0 => take lo_short)
+//            0, // hi_long  (0 => take lo_long)
+//          676, // lo_last
+//        23928, // sep
+//           12  // nb_bits
+//    );
+//    rf.register_callback(callback, 2000);
 
 // You can combine defining callbacks within register_Receiver and calling
 // register_callback().
@@ -146,24 +126,24 @@ void setup() {
 // receiver.
 
         // OTIO (no rolling code, 32-bit)
-    rf.register_Receiver(
-        RFMOD_TRIBIT, // mod
-         6976, // initseq
-            0, // lo_prefix
-            0, // hi_prefix
-            0, // first_lo_ign
-          562, // lo_short
-         1258, // lo_long
-            0, // hi_short (0 => take lo_short)
-            0, // hi_long  (0 => take lo_long)
-          528, // lo_last
-         6996, // sep
-           32, // nb_bits
-        callback,
-         2000
-    );
-    rf.register_callback(callback_2, 1000);
-    rf.register_callback(callback_3, 200);
+//    rf.register_Receiver(
+//        RFMOD_TRIBIT, // mod
+//         6976, // initseq
+//            0, // lo_prefix
+//            0, // hi_prefix
+//            0, // first_lo_ign
+//          562, // lo_short
+//         1258, // lo_long
+//            0, // hi_short (0 => take lo_short)
+//            0, // hi_long  (0 => take lo_long)
+//          528, // lo_last
+//         6996, // sep
+//           32, // nb_bits
+//        callback,
+//         2000
+//    );
+//    rf.register_callback(callback_2, 1000);
+//    rf.register_callback(callback_3, 200);
 
 // The advantage of register_callback is that you can provide a code, to execute
 // callback function only for a specific received code.
@@ -171,30 +151,57 @@ void setup() {
         // ADF (no rolling code, 32-bit)
     rf.register_Receiver(
         RFMOD_MANCHESTER, // mod
-         8144, // initseq
+         5500, // initseq
             0, // lo_prefix
             0, // hi_prefix
             0, // first_lo_ign
          1166, // lo_short
-         2330, // lo_long
+            0, // lo_long
             0, // hi_short (0 => take lo_short)
             0, // hi_long  (0 => take lo_long)
-         2284, // lo_last
-         8164, // sep
-           32  // nb_bits
+            0, // lo_last
+         5500, // sep
+           32, // nb_bits
+           callback,
+           2000
     );
-    rf.register_callback(callback_man_1, 2000,
-            new BitVector(32, 4, 0x90, 0x91, 0x92, 0x93));
-    rf.register_callback(callback_man_2, 2000,
-            new BitVector(32, 4, 0x94, 0x95, 0x96, 0x97));
+//    rf.register_callback(callback_man_1, 2000,
+//            new BitVector(32, 4, 0x4A, 0x9B, 0x9C, 0x9D));
+//    rf.register_callback(callback_man_2, 2000,
+//            new BitVector(32, 4, 0x4E, 0x9F, 0xA0, 0xA1));
+
+
+
+
+// Second style: provide a callback at the time the receiver is registered
+
+        // FLO/R (rolling code, 72-bit, has a prefix)
+    rf.register_Receiver(
+        RFMOD_TRIBIT, // mod
+        18000, // initseq
+         1450, // lo_prefix
+         1450, // hi_prefix
+            0, // first_lo_ign
+          450, // lo_short
+          900, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+         1400, // lo_last
+        18000, // sep
+           72, // nb_bits
+        callback,
+         2000
+    );
+
+
 
     Serial.print(F("Waiting for signal\n"));
 
-    rf.set_opt_wait_free_433(true);
+    rf.set_opt_wait_free_433(false);
     rf.activate_interrupts_handler();
 
     assert(true); // Written to avoid a warning "unused function"
-                  // FIXME (remove assert management code?)
+                  // FIXME (remove assert management code? Leaving it for now.)
 }
 
 void loop() {

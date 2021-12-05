@@ -353,7 +353,7 @@ const auto_t automat_tribit[] MY_PROGMEM = {
 #define TRIBIT_NB_ELEMS_WITH_PREFIX (ARRAYSZ(automat_tribit))
 #define TRIBIT_NB_ELEMS_WITHOUT_PREFIX (TRIBIT_NB_ELEMS_WITH_PREFIX - 4)
 
-// IMPORTANT - FIXME FIXME FIXME
+// IMPORTANT - FIXME
 // ***NOT TESTED WITH A PREFIX***
 // IN REAL CONDITIONS, TESTED ONLY *WITHOUT* PREFIX
 const auto_t automat_tribit_inverted[] MY_PROGMEM = {
@@ -361,7 +361,7 @@ const auto_t automat_tribit_inverted[] MY_PROGMEM = {
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
 
-//    WHAT TO DO      MINVAL MAXVAL (T)  (F)
+//    WHAT TO DO       MINVAL MAXVAL (T)  (F)
     { W_WAIT_SIGNAL,        1,     1,  2,   0 }, //  0
     { W_TERMINATE,          0,     0,  1,  99 }, //  1
     { W_CHECK_DURATION,   251,   251, 18,   0 }, //  2
@@ -407,48 +407,50 @@ const auto_t automat_manchester[] MY_PROGMEM = {
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
 
-//    WHAT TO DO      MINVAL MAXVAL (T)  (F)
+//    WHAT TO DO       MINVAL MAXVAL (T)  (F)
     { W_WAIT_SIGNAL,        1,     1,  2,   0 }, //  0
-    { W_TERMINATE,          0,     0,  1,  99 }, //  1
-    { W_CHECK_DURATION,  4000, 65535,  3,   0 }, //  2
+    { W_TERMINATE,          0,     0,  1, 199 }, //  1
+    { W_CHECK_DURATION,   251,   251,  3,   0 }, //  2
 
     { W_WAIT_SIGNAL,        0,     0,  4,   0 }, //  3
-    { W_CHECK_DURATION,   700,  1400,  5,   0 }, //  4
+    { W_CHECK_DURATION,   251,   251,  5,   0 }, //  4
     { W_WAIT_SIGNAL,        1,     1,  6,   0 }, //  5
-    { W_CHECK_DURATION,   700,  1400,  7,   2 }, //  6
+    { W_CHECK_DURATION,   251,   251,  7,  32 }, //  6
 
-    { W_RESET_BITS,         0,     0,  8,  99 }, //  7
+    { W_RESET_BITS,         0,     0,  8, 199 }, //  7
 
     { W_WAIT_SIGNAL,        0,     0,  9,   0 }, //  8
-    { W_CHECK_DURATION,   700,  1600, 10,   0 }, //  9
+    { W_CHECK_DURATION,   251,   251, 10,   0 }, //  9
 
     { W_WAIT_SIGNAL,        1,     1, 11,   0 }, // 10
-    { W_CHECK_DURATION,   700,  1700, 13,  12 }, // 11
-    { W_CHECK_DURATION,  1700,  2800, 15,  29 }, // 12
+    { W_CHECK_DURATION,   251,   251, 13,  12 }, // 11
+    { W_CHECK_DURATION,   251,   251, 15,  29 }, // 12
 
-    { W_ADD_ZERO,           0,     0, 14,   2 }, // 13
-    { W_CHECK_BITS,        32,    32,  1,   8 }, // 14
+    { W_ADD_ZERO,           0,     0, 14, 199 }, // 13
+    { W_CHECK_BITS,       251,   251,  1,   8 }, // 14
 
-    { W_ADD_ZERO,           0,     0, 16,   2 }, // 15
-    { W_CHECK_BITS,        32,    32,  1,  17 }, // 16
+    { W_ADD_ZERO,           0,     0, 16, 199 }, // 15
+    { W_CHECK_BITS,       251,   251,  1,  17 }, // 16
     { W_WAIT_SIGNAL,        0,     0, 18,   0 }, // 17
-    { W_CHECK_DURATION,   700,  1600, 20,  19 }, // 18
-    { W_CHECK_DURATION,  1700,  2800, 27,   0 }, // 19
+    { W_CHECK_DURATION,   251,   251, 20,  19 }, // 18
+    { W_CHECK_DURATION,   251,   251, 27,   0 }, // 19
 
-    { W_ADD_ONE,            1,     1, 21,   0 }, // 20
-    { W_CHECK_BITS,        32,    32,  1,  22 }, // 21
+    { W_ADD_ONE,            1,     1, 21, 199 }, // 20
+    { W_CHECK_BITS,       251,   251,  1,  22 }, // 21
     { W_WAIT_SIGNAL,        1,     1, 23,   0 }, // 22
-    { W_CHECK_DURATION,   700,  1600, 24,   2 }, // 23
+    { W_CHECK_DURATION,   251,   251, 24,   2 }, // 23
     { W_WAIT_SIGNAL,        0,     0, 25,   0 }, // 24
-    { W_CHECK_DURATION,   700,  1600, 20,  26 }, // 25
-    { W_CHECK_DURATION,  1700,  2800, 27,   0 }, // 26
+    { W_CHECK_DURATION,   251,   251, 20,  26 }, // 25
+    { W_CHECK_DURATION,   251,   251, 27,   0 }, // 26
 
-    { W_ADD_ONE,            0,     0, 28,   0 }, // 27
-    { W_CHECK_BITS,        32,    32,  1,  10 }, // 28
+    { W_ADD_ONE,            0,     0, 28, 199 }, // 27
+    { W_CHECK_BITS,       251,   251,  1,  10 }, // 28
 
-    { W_CHECK_BITS,        31,    31, 30,   2 }, // 29
-    { W_CHECK_DURATION,  1700, 65535, 31,   2 }, // 30
-    { W_ADD_ZERO,           0,     0,  1,  99 }, // 31
+    { W_CHECK_BITS,       251,   251, 30,   2 }, // 29
+    { W_CHECK_DURATION,   251,   251, 31,   2 }, // 30
+    { W_ADD_ZERO,           0,     0,  1, 199 }, // 31
+
+    { W_CHECK_DURATION,   251,   251, 17,   2 }  // 32
 };
 #define MANCHESTER_NB_BYTES_WITHOUT_PREFIX (sizeof(automat_manchester))
 #define MANCHESTER_NB_ELEMS_WITHOUT_PREFIX (ARRAYSZ(automat_manchester))
@@ -507,11 +509,21 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
         uint16_t sep, byte nb_bits, byte *pnb_elems) {
 
-    assert((lo_prefix && hi_prefix) || (!lo_prefix && !hi_prefix));
-    assert((hi_short && hi_long) || (!hi_short && !hi_long));
-    if (!hi_short && !hi_long) {
-        hi_short = lo_short;
-        hi_long = lo_long;
+    if (mod != RFMOD_MANCHESTER) {
+        assert((lo_prefix && hi_prefix) || (!lo_prefix && !hi_prefix));
+        assert((hi_short && hi_long) || (!hi_short && !hi_long));
+        if (!hi_short && !hi_long) {
+            hi_short = lo_short;
+            hi_long = lo_long;
+        }
+    } else {
+        assert(!lo_prefix && !hi_prefix);
+        assert(!lo_long);
+        assert(!hi_long);
+        lo_long = lo_short << 1;
+        if (!hi_short)
+            hi_short = lo_short;
+        hi_long = hi_short << 1;
     }
 
     duration_t c_lo_short_inf;
@@ -579,8 +591,8 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
                 ? TRIBIT_NB_ELEMS_WITH_PREFIX : TRIBIT_NB_ELEMS_WITHOUT_PREFIX);
 
         pauto = (auto_t*)malloc(sz);
-
         my_pgm_memcpy(pauto, automat_tribit, sz);
+
         myset(pauto, *pnb_elems, 2, c_initseq, compact(65535));
         myset(pauto, *pnb_elems, 5, c_lo_short_inf, c_lo_short_sup);
         myset(pauto, *pnb_elems, 6, c_lo_long_inf, c_lo_long_sup);
@@ -609,8 +621,8 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
                 : TRIBIT_INVERTED_NB_ELEMS_WITHOUT_PREFIX);
 
         pauto = (auto_t*)malloc(sz);
-
         my_pgm_memcpy(pauto, automat_tribit_inverted, sz);
+
         myset(pauto, *pnb_elems, 2, c_initseq, compact(65535));
         myset(pauto, *pnb_elems, 4, c_first_lo_ign_inf, c_first_lo_ign_sup);
         myset(pauto, *pnb_elems, 7, c_hi_short_inf, c_hi_short_sup);
@@ -637,13 +649,36 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         *pnb_elems = MANCHESTER_NB_ELEMS_WITHOUT_PREFIX;
 
         pauto = (auto_t*)malloc(sz);
-
         my_pgm_memcpy(pauto, automat_manchester, sz);
+
+        myset(pauto, *pnb_elems, 2, c_initseq, compact(65535));
+        myset(pauto, *pnb_elems, 4, c_lo_short_inf, c_lo_short_sup);
+        myset(pauto, *pnb_elems, 6, c_hi_short_inf, c_hi_short_sup);
+        myset(pauto, *pnb_elems, 9, c_lo_short_inf, c_lo_short_sup);
+        myset(pauto, *pnb_elems, 11, c_hi_short_inf, c_hi_short_sup);
+        myset(pauto, *pnb_elems, 12, c_hi_long_inf, c_hi_long_sup);
+        myset(pauto, *pnb_elems, 14, nb_bits, nb_bits);
+        myset(pauto, *pnb_elems, 16, nb_bits, nb_bits);
+        myset(pauto, *pnb_elems, 18, c_lo_short_inf, c_lo_short_sup);
+        myset(pauto, *pnb_elems, 19, c_lo_long_inf, c_lo_long_sup);
+        myset(pauto, *pnb_elems, 21, nb_bits, nb_bits);
+        myset(pauto, *pnb_elems, 23, c_hi_short_inf, c_hi_short_sup);
+        myset(pauto, *pnb_elems, 25, c_lo_short_inf, c_lo_short_sup);
+        myset(pauto, *pnb_elems, 26, c_lo_long_inf, c_lo_long_sup);
+        myset(pauto, *pnb_elems, 28, nb_bits, nb_bits);
+        myset(pauto, *pnb_elems, 29, nb_bits - 1, nb_bits - 1);
+        myset(pauto, *pnb_elems, 30, c_hi_long_inf, compact(65535));
+        myset(pauto, *pnb_elems, 32, c_hi_long_inf, c_hi_long_sup);
 
         break;
 
     default:
         assert(false);
+    }
+
+    for (byte i = 0; i < *pnb_elems; ++i) {
+        assert(pauto[i].minval != 251);
+        assert(pauto[i].maxval != 251);
     }
 
     return pauto;
@@ -940,7 +975,9 @@ void RF_manager::do_events() {
 
         Receiver* ptr_rec = head;
         while (ptr_rec) {
-            ptr_rec->reset();
+            if (!ptr_rec->get_has_value()) {
+                ptr_rec->reset();
+            }
             ptr_rec = ptr_rec->get_next();
         }
 
@@ -1026,35 +1063,64 @@ volatile uint16_t RF_manager::IH_wait_free_last16;
 #ifdef SIMULATE_INTERRUPTS
 uint16_t timings[] = {
 
-    0 ,  5296,
-    1148,  1312,
-    1136,  2524,
-    2392,  1328,
-    1152,  1312,
-    1204,  1236,
-    1200,  1252,
-    1124,  1320,
-    1148,  1320,
-    1128,  1328,
-    1156,  1292,
-    1128,  1320,
-    1164,  1312,
-    1108,  1352,
-    1120,  2536,
-    1164,  1280,
-    1196,  1288,
-    2392,  1320,
-    1184,  1272,
-    1172,  2500,
-    2460,  1268,
-    1136,  2540,
-    2440,  2532,
-    2400,  1308,
-    1156,  2508,
-    1204,  1252,
-    1164,  1312,
-    2416,  5308,
-    2416,  5308
+//    0 ,  5296,
+//    1148,  1312,
+//    1136,  2524,
+//    2392,  1328,
+//    1152,  1312,
+//    1204,  1236,
+//    1200,  1252,
+//    1124,  1320,
+//    1148,  1320,
+//    1128,  1328,
+//    1156,  1292,
+//    1128,  1320,
+//    1164,  1312,
+//    1108,  1352,
+//    1120,  2536,
+//    1164,  1280,
+//    1196,  1288,
+//    2392,  1320,
+//    1184,  1272,
+//    1172,  2500,
+//    2460,  1268,
+//    1136,  2540,
+//    2440,  2532,
+//    2400,  1308,
+//    1156,  2508,
+//    1204,  1252,
+//    1164,  1312,
+//    2416,  5308,
+//    2416,  5308
+
+    0,     5544,
+    1144,  2316,
+    2304,  1168,
+    1128,  2328,
+    1144,  1156,
+    1140,  1156,
+    1148,  1156,
+    2296,  2320,
+    2308,  1168,
+    1128,  2332,
+    1136,  1156,
+    1148,  1156,
+    1136,  1164,
+    1144,  1156,
+    1148,  1168,
+    2296,  2344,
+    2296,  1176,
+    1128,  1176,
+    1128,  1172,
+    1124,  1176,
+    1136,  2336,
+    2296,  2336,
+    2308,  1176,
+    1128,  1172,
+    1128,  1176,
+    1128,  2348,
+    1116,  5548
+
 
 };
 const size_t timings_len = sizeof(timings) / sizeof(*timings);
