@@ -450,7 +450,8 @@ const auto_t automat_manchester[] MY_PROGMEM = {
     { W_CHECK_DURATION,   251,   251, 31,   2 }, // 30
     { W_ADD_ZERO,           0,     0,  1, 199 }, // 31
 
-    { W_CHECK_DURATION,   251,   251, 17,   2 }  // 32
+    { W_CHECK_DURATION,   251,   251, 33,   2 }, // 32
+    { W_RESET_BITS,         0,     0, 17, 199 }  // 33
 };
 #define MANCHESTER_NB_BYTES_WITHOUT_PREFIX (sizeof(automat_manchester))
 #define MANCHESTER_NB_ELEMS_WITHOUT_PREFIX (ARRAYSZ(automat_manchester))
@@ -1096,7 +1097,42 @@ uint16_t timings[] = {
     1260,   560,
     504,  65535,
 
-    0,        0
+
+    0,    24100,
+    2064,  1432,
+    468,   1424,
+    468,    820,
+    1068,  1436,
+    476,    816,
+    1052,  1464,
+    420,    872,
+    992,   1500,
+    400,    900,
+    1012,  1480,
+    428,   1456,
+    472,    820,
+    1068,   840,
+    1048,   848,
+    1060,  1456,
+    448,    844,
+    1020, 55356,
+
+    0,    10044,
+    1144,  2308,
+    1192,  1108,
+    2348,  2288,
+    2316,  1160,
+    1128,  2328,
+    1140,  1156,
+    1148,  1152,
+    1156,  1136,
+    1156,  1136,
+    2316,  1152,
+    1144,  2328,
+    2288,  2340,
+    1140, 10032,
+
+    0, 0
 };
 const size_t timings_len = sizeof(timings) / sizeof(*timings);
 byte timings_index = 0;

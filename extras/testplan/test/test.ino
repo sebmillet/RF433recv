@@ -51,8 +51,11 @@ static void recv_ino_assert_failed(int line) {
         ;
 }
 
+extern const size_t timings_len;
+extern byte timings_index;
+
 void callback(const BitVector *recorded) {
-    Serial.print(F("Code received: "));
+    Serial.print(F("code received: "));
     char *printed_code = recorded->to_str();
     if (printed_code) {
         Serial.print(recorded->get_nb_bits());
@@ -62,6 +65,26 @@ void callback(const BitVector *recorded) {
     }
     if (printed_code)
         free(printed_code);
+}
+
+void callback1(const BitVector *recorded) {
+    Serial.print(F("1: "));
+    callback(recorded);
+}
+
+void callback2(const BitVector *recorded) {
+    Serial.print(F("2: "));
+    callback(recorded);
+}
+
+void callback3(const BitVector *recorded) {
+    Serial.print(F("3: "));
+    callback(recorded);
+}
+
+void callback4(const BitVector *recorded) {
+    Serial.print(F("4: "));
+    callback(recorded);
 }
 
 RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
@@ -84,8 +107,8 @@ void setup() {
           676, // lo_last
         23928, // sep
            12, // nb_bits
-     callback, // Callback when code received
-             0
+    callback1, // Callback when code received
+         2000
     );
 
         // SECOND CODE, inspired from OTIO (but shorter)
@@ -102,31 +125,45 @@ void setup() {
           528, // lo_last
          6996, // sep
            16, // nb_bits
-     callback, // Callback when code received
-             0
+    callback2, // Callback when code received
+         2000
+    );
+
+        // THIRD CODE, remotely inspired from FLO
+    rf.register_Receiver(
+        RFMOD_TRIBIT_INVERTED, // mod
+        24000, // initseq
+            0, // lo_prefix
+            0, // hi_prefix
+         2000, // first_lo_ign
+          496, // lo_short
+         1072, // lo_long
+          836, // hi_short (0 => take lo_short)
+         1436, // hi_long  (0 => take lo_long)
+            0, // lo_last
+        24000, // sep
+           16, // nb_bits
+    callback3,
+         2000
     );
 
         // ADF (no rolling code, 32-bit)
-//    rf.register_Receiver(
-//        RFMOD_MANCHESTER, // mod
-//         5500, // initseq
-//            0, // lo_prefix
-//            0, // hi_prefix
-//            0, // first_lo_ign
-//         1166, // lo_short
-//            0, // lo_long
-//            0, // hi_short (0 => take lo_short)
-//            0, // hi_long  (0 => take lo_long)
-//            0, // lo_last
-//         5500, // sep
-//           32, // nb_bits
-//           callback,
-//           2000
-//    );
-//    rf.register_callback(callback_man_1, 2000,
-//            new BitVector(32, 4, 0x4A, 0x9B, 0x9C, 0x9D));
-//    rf.register_callback(callback_man_2, 2000,
-//            new BitVector(32, 4, 0x4E, 0x9F, 0xA0, 0xA1));
+    rf.register_Receiver(
+        RFMOD_MANCHESTER, // mod
+        10000, // initseq
+            0, // lo_prefix
+            0, // hi_prefix
+            0, // first_lo_ign
+         1166, // lo_short
+            0, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+         1164, // lo_last
+        10000, // sep
+           16, // nb_bits
+    callback4,
+         2000
+    );
 
         // FLO/R (rolling code, 72-bit, has a prefix)
 //    rf.register_Receiver(
@@ -153,9 +190,6 @@ void setup() {
     assert(true); // Written to avoid a warning "unused function"
                   // FIXME (remove assert management code? Leaving it for now.)
 }
-
-extern const size_t timings_len;
-extern byte timings_index;
 
 void handle_int_receive();
 bool has_read_all_timings();

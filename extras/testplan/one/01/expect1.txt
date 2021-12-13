@@ -1,2 +1,4 @@
-Code received: 12 bits: [07 51]
-Code received: 16 bits: [ad 15]
+1: code received: 12 bits: [07 51]
+2: code received: 16 bits: [ad 15]
+3: code received: 16 bits: [d5 62]
+4: code received: 16 bits: [d3 e5]
