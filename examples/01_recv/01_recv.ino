@@ -51,8 +51,21 @@ static void recv_ino_assert_failed(int line) {
         ;
 }
 
-void callback(const BitVector *recorded) {
-    Serial.print(F("Code received: "));
+void callback_man(const BitVector *recorded) {
+    Serial.print(F("[MAN] Code received: "));
+    char *printed_code = recorded->to_str();
+    if (printed_code) {
+        Serial.print(recorded->get_nb_bits());
+        Serial.print(F(" bits: ["));
+        Serial.print(printed_code);
+        Serial.print(F("]\n"));
+    }
+    if (printed_code)
+        free(printed_code);
+}
+
+void callback_tri(const BitVector *recorded) {
+    Serial.print(F("[TRI] Code received: "));
     char *printed_code = recorded->to_str();
     if (printed_code) {
         Serial.print(recorded->get_nb_bits());
@@ -162,8 +175,8 @@ void setup() {
             0, // lo_last
          5500, // sep
            32, // nb_bits
-           callback,
-           2000
+ callback_man,
+         2000
     );
 //    rf.register_callback(callback_man_1, 2000,
 //            new BitVector(32, 4, 0x4A, 0x9B, 0x9C, 0x9D));
@@ -189,7 +202,7 @@ void setup() {
          1400, // lo_last
         18000, // sep
            72, // nb_bits
-        callback,
+ callback_tri,
          2000
     );
 

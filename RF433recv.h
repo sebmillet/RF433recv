@@ -21,6 +21,9 @@
 #ifndef _RF433RECV_H
 #define _RF433RECV_H
 
+    // Don't uncomment the below unless you know what you are doing
+//#define RF433RECV_TESTPLAN 1
+
 // ****************************************************************************
 // RF433RECV_TESTPLAN *********************************************************
 #if RF433RECV_TESTPLAN == 1
@@ -44,10 +47,14 @@
 
 #endif // RF433ANY_TESTPLAN
 
-
     // The possibility *not* to compact durations is available for debugging
-    // purposes.
+    // purposes. You should not use it in normal circumstances.
 //#define NO_COMPACT_DURATIONS
+
+#ifdef NO_COMPACT_DURATIONS
+#pragma message ("NO_COMPACT_DURATIONS MACRO DEFINED!")
+#warning "NO_COMPACT_DURATIONS MACRO DEFINED!"
+#endif
 
     // Don't uncomment this unless you know what you are doing
 //#define NO_PROGMEM_FOR_AUTOMAT_TEMPLATES

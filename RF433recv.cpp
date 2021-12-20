@@ -427,16 +427,16 @@ const auto_t automat_manchester[] MY_PROGMEM = {
     { W_CHECK_DURATION,   251,   251, 15,  29 }, // 12
 
     { W_ADD_ZERO,           0,     0, 14, 199 }, // 13
-    { W_CHECK_BITS,       251,   251,  1,   8 }, // 14
+    { W_CHECK_BITS,       251,   251, 36,   8 }, // 14
 
     { W_ADD_ZERO,           0,     0, 16, 199 }, // 15
-    { W_CHECK_BITS,       251,   251,  1,  17 }, // 16
+    { W_CHECK_BITS,       251,   251, 36,  17 }, // 16
     { W_WAIT_SIGNAL,        0,     0, 18,   0 }, // 17
     { W_CHECK_DURATION,   251,   251, 20,  19 }, // 18
     { W_CHECK_DURATION,   251,   251, 27,   0 }, // 19
 
     { W_ADD_ONE,            1,     1, 21, 199 }, // 20
-    { W_CHECK_BITS,       251,   251,  1,  22 }, // 21
+    { W_CHECK_BITS,       251,   251, 34,  22 }, // 21
     { W_WAIT_SIGNAL,        1,     1, 23,   0 }, // 22
     { W_CHECK_DURATION,   251,   251, 24,   2 }, // 23
     { W_WAIT_SIGNAL,        0,     0, 25,   0 }, // 24
@@ -444,14 +444,21 @@ const auto_t automat_manchester[] MY_PROGMEM = {
     { W_CHECK_DURATION,   251,   251, 27,   0 }, // 26
 
     { W_ADD_ONE,            0,     0, 28, 199 }, // 27
-    { W_CHECK_BITS,       251,   251,  1,  10 }, // 28
+    { W_CHECK_BITS,       251,   251, 34,  10 }, // 28
 
     { W_CHECK_BITS,       251,   251, 30,   2 }, // 29
     { W_CHECK_DURATION,   251,   251, 31,   2 }, // 30
     { W_ADD_ZERO,           0,     0,  1, 199 }, // 31
 
     { W_CHECK_DURATION,   251,   251, 33,   2 }, // 32
-    { W_RESET_BITS,         0,     0, 17, 199 }  // 33
+    { W_RESET_BITS,         0,     0, 17, 199 }, // 33
+
+    { W_WAIT_SIGNAL,        1,     1, 35,   0 }, // 34
+    { W_CHECK_DURATION,   251,   251,  2,   1 }, // 35
+
+    { W_WAIT_SIGNAL,        0,     0, 37,   0 }, // 36
+    { W_CHECK_DURATION,   251,   251,  0,   1 }  // 37
+
 };
 #define MANCHESTER_NB_BYTES_WITHOUT_PREFIX (sizeof(automat_manchester))
 #define MANCHESTER_NB_ELEMS_WITHOUT_PREFIX (ARRAYSZ(automat_manchester))
@@ -509,6 +516,14 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
         uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
         uint16_t sep, byte nb_bits, byte *pnb_elems) {
+
+    dbgf("== mod = %d, initseq = %u, lo_prefix = %u, hi_prefix = %u, "
+            "first_lo_ign = %u\n", mod, initseq, lo_prefix, hi_prefix,
+            first_lo_ign);
+    dbgf("== lo_short = %u, lo_long = %u, hi_short = %u, hi_long = %u\n",
+            lo_short, lo_long, hi_short, hi_long);
+    dbgf("== lo_last = %u, sep = %u, nb_bits = %d, *pnb_elems = %d\n",
+            lo_last, sep, nb_bits, *pnb_elems);
 
     if (mod != RFMOD_MANCHESTER) {
         assert((lo_prefix && hi_prefix) || (!lo_prefix && !hi_prefix));
@@ -668,8 +683,11 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         myset(pauto, *pnb_elems, 26, c_lo_long_inf, c_lo_long_sup);
         myset(pauto, *pnb_elems, 28, nb_bits, nb_bits);
         myset(pauto, *pnb_elems, 29, nb_bits - 1, nb_bits - 1);
-        myset(pauto, *pnb_elems, 30, c_hi_long_inf, compact(65535));
+        myset(pauto, *pnb_elems, 30, c_sep, compact(65535));
         myset(pauto, *pnb_elems, 32, c_hi_long_inf, c_hi_long_sup);
+
+        myset(pauto, *pnb_elems, 35, c_hi_short_inf, c_hi_long_sup);
+        myset(pauto, *pnb_elems, 37, c_lo_short_inf, c_lo_long_sup);
 
         break;
 
@@ -677,6 +695,7 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         assert(false);
     }
 
+        // Defensive programming
     for (byte i = 0; i < *pnb_elems; ++i) {
         assert(pauto[i].minval != 251);
         assert(pauto[i].maxval != 251);
@@ -1062,8 +1081,8 @@ volatile uint16_t RF_manager::IH_wait_free_last16;
 // * ***************** ********************************************************
 
 #ifdef SIMULATE_INTERRUPTS
-uint16_t timings[] = {
-    0,    24116,
+const uint16_t timings[] PROGMEM = {
+    0,    24116,    // reg1: 07 51 (tribit_inv, 12-bit)
     672,    612,
     1336,  1260,
     688,   1248,
@@ -1078,7 +1097,23 @@ uint16_t timings[] = {
     1312,  1292,
     668,  65148,
 
-    0,     7020,
+                    // The below one is a repetition of the one above
+    0,    24116,    // reg1: 07 51 (tribit_inv, 12-bit)
+    672,    612,
+    1336,  1260,
+    688,   1248,
+    696,   1248,
+    688,    608,
+    1328,  1268,
+    688,    608,
+    1328,  1280,
+    656,    636,
+    1300,   636,
+    1308,   636,
+    1312,  1292,
+    668,  65148,
+
+    0,     7020,    // reg2: ad 15 (tribit, 16-bit)
     1292,   520,
     592,   1220,
     1288,   524,
@@ -1097,8 +1132,7 @@ uint16_t timings[] = {
     1260,   560,
     504,  65535,
 
-
-    0,    24100,
+    0,    24100,    // reg3: d5 62 (tribit_inv, 16-bit)
     2064,  1432,
     468,   1424,
     468,    820,
@@ -1117,7 +1151,7 @@ uint16_t timings[] = {
     448,    844,
     1020, 55356,
 
-    0,    10044,
+    0,    10044,    // reg4: d3 e5 (manchester, 16-bit)
     1144,  2308,
     1192,  1108,
     2348,  2288,
@@ -1132,10 +1166,193 @@ uint16_t timings[] = {
     2288,  2340,
     1140, 10032,
 
+    0,    11236,    // reg4: 03 e0 (manchester, 16-bit)
+    1148,  1148,
+    1156,  1148,
+    1148,  1148,
+    1152,  1148,
+    1144,  1156,
+    1136,  1156,
+    1148,  2312,
+    1136,  1156,
+    1144,  1156,
+    1148,  1144,
+    1148,  1156,
+    2308,  1164,
+    1148,  1160,
+    1136,  1156,
+    1148,  1164,
+    1140, 52456,
+
+    0,     5560,    // reg5: 4e 9f a0 a1 (manchester, 32-bit)
+    1136,  1156,
+    1136,  2316,
+    2324,  1156,
+    1136,  2316,
+    1136,  1164,
+    1128,  1168,
+    2296,  2316,
+    2316,  1156,
+    1136,  2316,
+    1136,  1164,
+    1136,  1164,
+    1128,  1176,
+    1124,  1176,
+    1136,  1168,
+    2304,  2324,
+    2316,  1168,
+    1132,  1176,
+    1116,  1188,
+    1116,  1184,
+    1120,  2340,
+    2308,  2328,
+    2312,  1164,
+    1128,  1176,
+    1128,  1176,
+    1128,  2352,
+    1108,  5552,
+
+    0,    11228,    // reg5: f0 55 aa 00 (manchester, 32-bit)
+    1144,  2316,
+    1148,  1156,
+    1136,  1156,
+    1140,  1156,
+    2308,  1156,
+    1136,  1164,
+    1132,  1156,
+    1136,  1156,
+    1136,  2336,
+    2292,  2328,
+    2308,  2332,
+    2296,  2336,
+    1136,  1176,
+    2296,  2336,
+    2296,  2336,
+    2296,  2336,
+    2308,  1176,
+    1120,  1176,
+    1128,  1176,
+    1128,  1184,
+    1120,  1184,
+    1128,  1172,
+    1128,  1168,
+    1136,  1176,
+    1124, 30000,
+
+    0,    30000,    // reg7: 55 (manchester, 8-bit)
+    1168,  1128,
+    1156,  2304,
+    2328,  2308,
+    2316,  2324,
+    2308,  2316,
+    1140, 10048,
+    1140,  1156,
+    1136,  2328,
+    2308,  2312,
+    2316,  2316,
+    2308,  2332,
+    1136, 30000,
+
+    0,    30000,    // reg7: 44 (manchester, 8-bit)
+    1176,  1120,
+    1184,  2284,
+    2356,  1108,
+    1176,  1120,
+    1184,  2284,
+    2328,  1140,
+    1156, 30000,
+                    // The below one MUST NOT match
+    0,    30000,    // reg7: fake 44 (manchester, 8-bit)
+    1176,  1120,
+    1184,  2284,
+    2356,  1108,
+    1176,  1120,
+    1184,  2284,
+    2328,  1140,
+    1156,  2284,    // ISSUE HERE (2284 instead of a separator like 30000)
+    2328,  1140,
+    1156, 30000,
+
+    0,   17884,     // reg6: 18 24 46 c1 d7 48 c8 66 08 (tribit, 72-bit)
+    1432, 1416,
+    424,   976,
+    400,   992,
+    396,   984,
+    880,   500,
+    896,   476,
+    444,   912,
+    508,   884,
+    512,   868,
+    532,   856,
+    544,   848,
+    984,   404,
+    516,   888,
+    484,   920,
+    924,   492,
+    408,   992,
+    396,  1004,
+    388,  1004,
+    868,   524,
+    396,   980,
+    440,   924,
+    492,   908,
+    952,   440,
+    964,   428,
+    504,   884,
+    976,   416,
+    964,   436,
+    476,   944,
+    440,   976,
+    404,  1004,
+    380,  1020,
+    368,  1020,
+    860,   524,
+    880,   504,
+    896,   484,
+    456,   924,
+    944,   448,
+    484,   904,
+    964,   428,
+    956,   444,
+    932,   460,
+    456,   960,
+    888,   512,
+    400,  1024,
+    368,  1032,
+    832,   560,
+    360,  1012,
+    388,   992,
+    416,   964,
+    916,   464,
+    928,   452,
+    476,   916,
+    464,   936,
+    932,   460,
+    452,   944,
+    448,   964,
+    420,   992,
+    384,  1020,
+    840,   572,
+    820,   568,
+    352,  1020,
+    372,  1004,
+    888,   492,
+    908,   464,
+    460,   944,
+    460,   928,
+    456,   936,
+    452,   944,
+    456,   936,
+    916,   496,
+    416,   992,
+    388,  1024,
+    368,  1040,
+   1304, 19376,
+
     0, 0
 };
 const size_t timings_len = sizeof(timings) / sizeof(*timings);
-byte timings_index = 0;
+size_t timings_index = 0;
 bool has_read_all_timings() { return timings_index >= timings_len; }
 #endif
 
@@ -1151,7 +1368,8 @@ void handle_int_receive() {
 
 #ifdef SIMULATE_INTERRUPTS
     if (timings_index < timings_len) {
-        signal_duration = timings[timings_index];
+        signal_duration = pgm_read_word(&timings[timings_index]);
+
         timings_index++;
     } else {
         return;

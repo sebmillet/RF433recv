@@ -52,9 +52,16 @@ static void recv_ino_assert_failed(int line) {
 }
 
 extern const size_t timings_len;
-extern byte timings_index;
+extern size_t timings_index;
 
 void callback(const BitVector *recorded) {
+    static byte output_n = 0;
+
+    ++output_n;
+
+    Serial.print(F("output_n="));
+    Serial.print(output_n);
+    Serial.print(F(": "));
     Serial.print(F("code received: "));
     char *printed_code = recorded->to_str();
     if (printed_code) {
@@ -67,25 +74,21 @@ void callback(const BitVector *recorded) {
         free(printed_code);
 }
 
-void callback1(const BitVector *recorded) {
-    Serial.print(F("1: "));
-    callback(recorded);
+#define BUILDFUNC_CALLBACK(n) \
+void callback##n(const BitVector *recorded) { \
+    Serial.print(F("reg")); \
+    Serial.print(n); \
+    Serial.print(F(": ")); \
+    callback(recorded); \
 }
 
-void callback2(const BitVector *recorded) {
-    Serial.print(F("2: "));
-    callback(recorded);
-}
-
-void callback3(const BitVector *recorded) {
-    Serial.print(F("3: "));
-    callback(recorded);
-}
-
-void callback4(const BitVector *recorded) {
-    Serial.print(F("4: "));
-    callback(recorded);
-}
+BUILDFUNC_CALLBACK(1)
+BUILDFUNC_CALLBACK(2)
+BUILDFUNC_CALLBACK(3)
+BUILDFUNC_CALLBACK(4)
+BUILDFUNC_CALLBACK(5)
+BUILDFUNC_CALLBACK(6)
+BUILDFUNC_CALLBACK(7)
 
 RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
 
@@ -93,6 +96,15 @@ void setup() {
     pinMode(PIN_RFINPUT, INPUT);
     Serial.begin(115200);
 
+#define reg1
+#define reg2
+#define reg3
+#define reg4
+#define reg5
+#define reg6
+#define reg7
+
+#ifdef reg1
         // FIRST CODE, inspired from FLO
     rf.register_Receiver(
         RFMOD_TRIBIT_INVERTED, // mod
@@ -108,9 +120,11 @@ void setup() {
         23928, // sep
            12, // nb_bits
     callback1, // Callback when code received
-         2000
+            0
     );
+#endif
 
+#ifdef reg2
         // SECOND CODE, inspired from OTIO (but shorter)
     rf.register_Receiver(
         RFMOD_TRIBIT, // mod
@@ -126,10 +140,12 @@ void setup() {
          6996, // sep
            16, // nb_bits
     callback2, // Callback when code received
-         2000
+            0
     );
+#endif
 
-        // THIRD CODE, remotely inspired from FLO
+#ifdef reg3
+        // THIRD CODE, remotely inspired from FLO/R
     rf.register_Receiver(
         RFMOD_TRIBIT_INVERTED, // mod
         24000, // initseq
@@ -144,10 +160,12 @@ void setup() {
         24000, // sep
            16, // nb_bits
     callback3,
-         2000
+            0
     );
+#endif
 
-        // ADF (no rolling code, 32-bit)
+#ifdef reg4
+        // FOURTH ONE, inspired from ADF
     rf.register_Receiver(
         RFMOD_MANCHESTER, // mod
         10000, // initseq
@@ -162,27 +180,69 @@ void setup() {
         10000, // sep
            16, // nb_bits
     callback4,
-         2000
+            0
     );
+#endif
 
-        // FLO/R (rolling code, 72-bit, has a prefix)
-//    rf.register_Receiver(
-//        RFMOD_TRIBIT, // mod
-//        18000, // initseq
-//         1450, // lo_prefix
-//         1450, // hi_prefix
-//            0, // first_lo_ign
-//          450, // lo_short
-//          900, // lo_long
-//            0, // hi_short (0 => take lo_short)
-//            0, // hi_long  (0 => take lo_long)
-//         1400, // lo_last
-//        18000, // sep
-//           72, // nb_bits
-//        callback,
-//         2000
-//    );
+#ifdef reg5
+        // FIFTH ONE, Actual ADF (no rolling code, 32-bit)
+    rf.register_Receiver(
+        RFMOD_MANCHESTER, // mod
+         5500, // initseq
+            0, // lo_prefix
+            0, // hi_prefix
+            0, // first_lo_ign
+         1166, // lo_short
+            0, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+            0, // lo_last
+         5500, // sep
+           32, // nb_bits
+    callback5,
+            0
+    );
+#endif
 
+#ifdef reg6
+        // SIXTH ONE, FLO/R (rolling code, 72-bit, has a prefix)
+    rf.register_Receiver(
+        RFMOD_TRIBIT, // mod
+        18000, // initseq
+         1450, // lo_prefix
+         1450, // hi_prefix
+            0, // first_lo_ign
+          450, // lo_short
+          900, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+         1400, // lo_last
+        18000, // sep
+           72, // nb_bits
+    callback6,
+            0
+    );
+#endif
+
+#ifdef reg7
+        // SEVENTH ONE, inspired from ADF
+    rf.register_Receiver(
+        RFMOD_MANCHESTER, // mod
+        10000, // initseq
+            0, // lo_prefix
+            0, // hi_prefix
+            0, // first_lo_ign
+         1166, // lo_short
+            0, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+         1164, // lo_last
+        10000, // sep
+            8, // nb_bits
+    callback7,
+            0
+    );
+#endif
 
     rf.set_opt_wait_free_433(false);
     rf.activate_interrupts_handler();
