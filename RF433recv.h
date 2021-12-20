@@ -22,7 +22,7 @@
 #define _RF433RECV_H
 
     // Don't uncomment the below unless you know what you are doing
-#define RF433RECV_TESTPLAN 1
+//#define RF433RECV_TESTPLAN 1
 
 // ****************************************************************************
 // RF433RECV_TESTPLAN *********************************************************

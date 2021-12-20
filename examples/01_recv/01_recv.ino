@@ -35,62 +35,60 @@
 
 #define ASSERT_OUTPUT_TO_SERIAL
 
-#define assert(cond) { \
-    if (!(cond)) { \
-        recv_ino_assert_failed(__LINE__); \
-    } \
-}
-
-static void recv_ino_assert_failed(int line) {
-#ifdef ASSERT_OUTPUT_TO_SERIAL
-    Serial.print(F("\n01_recv.ino:"));
-    Serial.print(line);
-    Serial.println(F(": assertion failed, aborted."));
-#endif
-    while (1)
-        ;
-}
-
-void callback_man(const BitVector *recorded) {
-    Serial.print(F("[MAN] Code received: "));
+void callback_generic(const BitVector *recorded) {
+    Serial.print(F("Code received: "));
     char *printed_code = recorded->to_str();
+
     if (printed_code) {
         Serial.print(recorded->get_nb_bits());
         Serial.print(F(" bits: ["));
         Serial.print(printed_code);
         Serial.print(F("]\n"));
-    }
-    if (printed_code)
+
         free(printed_code);
-}
-
-void callback_tri(const BitVector *recorded) {
-    Serial.print(F("[TRI] Code received: "));
-    char *printed_code = recorded->to_str();
-    if (printed_code) {
-        Serial.print(recorded->get_nb_bits());
-        Serial.print(F(" bits: ["));
-        Serial.print(printed_code);
-        Serial.print(F("]\n"));
     }
-    if (printed_code)
-        free(printed_code);
 }
 
-void callback_2(const BitVector *recorded) {
-    Serial.print(F("callback_2 called\n"));
+void callback1(const BitVector *recorded) {
+    Serial.print(F("1> "));
+    callback_generic(recorded);
 }
 
-void callback_3(const BitVector *recorded) {
-    Serial.print(F("callback_3 called\n"));
+void callback2(const BitVector *recorded) {
+    Serial.print(F("2> "));
+    callback_generic(recorded);
 }
 
-void callback_man_1(const BitVector *recorded) {
-    Serial.print(F("Manchester code 1 received\n"));
+void callback3(const BitVector *recorded) {
+    Serial.print(F("3> "));
+    callback_generic(recorded);
 }
 
-void callback_man_2(const BitVector *recorded) {
-    Serial.print(F("Manchester code 2 received\n"));
+void callback4(const BitVector *recorded) {
+    Serial.print(F("4> "));
+    callback_generic(recorded);
+}
+
+void callback5(const BitVector *recorded) {
+    Serial.print(F("5> "));
+    callback_generic(recorded);
+}
+
+void callback6(const BitVector *recorded) {
+    Serial.print(F("6> "));
+    callback_generic(recorded);
+    Serial.print(F("Callback executed only for the received code 4A9B9C9D\n"));
+}
+
+void callback7(const BitVector *recorded) {
+    Serial.print(F("7> "));
+    callback_generic(recorded);
+    Serial.print(F("Callback executed only for the received code 4E9FA0A1\n"));
+}
+
+void callback8(const BitVector *recorded) {
+    Serial.print(F("8> "));
+    callback_generic(recorded);
 }
 
 RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
@@ -117,46 +115,48 @@ void setup() {
 // First style: use register_callback() *after* registering receiver
 
         // FLO (no rolling code, 12-bit)
-//    rf.register_Receiver(
-//        RFMOD_TRIBIT_INVERTED, // mod
-//        23936, // initseq
-//            0, // lo_prefix
-//            0, // hi_prefix
-//          684, // first_lo_ign
-//          684, // lo_short
-//         1360, // lo_long
-//            0, // hi_short (0 => take lo_short)
-//            0, // hi_long  (0 => take lo_long)
-//          676, // lo_last
-//        23928, // sep
-//           12  // nb_bits
-//    );
-//    rf.register_callback(callback, 2000);
+    rf.register_Receiver(
+        RFMOD_TRIBIT_INVERTED, // mod
+        23936, // initseq
+            0, // lo_prefix
+            0, // hi_prefix
+          684, // first_lo_ign
+          684, // lo_short
+         1360, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+          676, // lo_last
+        23928, // sep
+           12  // nb_bits
+    );
+    rf.register_callback(callback1, 2000);
 
 // You can combine defining callbacks within register_Receiver and calling
 // register_callback().
 // Remember register_callback() *ALWAYS* applies to the *LAST* registered
 // receiver.
 
+// Second style: provide a callback at the time the receiver is registered
+
         // OTIO (no rolling code, 32-bit)
-//    rf.register_Receiver(
-//        RFMOD_TRIBIT, // mod
-//         6976, // initseq
-//            0, // lo_prefix
-//            0, // hi_prefix
-//            0, // first_lo_ign
-//          562, // lo_short
-//         1258, // lo_long
-//            0, // hi_short (0 => take lo_short)
-//            0, // hi_long  (0 => take lo_long)
-//          528, // lo_last
-//         6996, // sep
-//           32, // nb_bits
-//        callback,
-//         2000
-//    );
-//    rf.register_callback(callback_2, 1000);
-//    rf.register_callback(callback_3, 200);
+    rf.register_Receiver(
+        RFMOD_TRIBIT, // mod
+         6976, // initseq
+            0, // lo_prefix
+            0, // hi_prefix
+            0, // first_lo_ign
+          562, // lo_short
+         1258, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+          528, // lo_last
+         6996, // sep
+           32, // nb_bits
+    callback2,
+         2000
+    );
+    rf.register_callback(callback3, 1000);
+    rf.register_callback(callback4, 200);
 
 // The advantage of register_callback is that you can provide a code, to execute
 // callback function only for a specific received code.
@@ -175,18 +175,13 @@ void setup() {
             0, // lo_last
          5500, // sep
            32, // nb_bits
- callback_man,
+    callback5,
          2000
     );
-//    rf.register_callback(callback_man_1, 2000,
-//            new BitVector(32, 4, 0x4A, 0x9B, 0x9C, 0x9D));
-//    rf.register_callback(callback_man_2, 2000,
-//            new BitVector(32, 4, 0x4E, 0x9F, 0xA0, 0xA1));
-
-
-
-
-// Second style: provide a callback at the time the receiver is registered
+    rf.register_callback(callback6, 2000,
+            new BitVector(32, 4, 0x4A, 0x9B, 0x9C, 0x9D));
+    rf.register_callback(callback7, 2000,
+            new BitVector(32, 4, 0x4E, 0x9F, 0xA0, 0xA1));
 
         // FLO/R (rolling code, 72-bit, has a prefix)
     rf.register_Receiver(
@@ -202,19 +197,14 @@ void setup() {
          1400, // lo_last
         18000, // sep
            72, // nb_bits
- callback_tri,
+    callback8,
          2000
     );
-
-
 
     Serial.print(F("Waiting for signal\n"));
 
     rf.set_opt_wait_free_433(false);
     rf.activate_interrupts_handler();
-
-    assert(true); // Written to avoid a warning "unused function"
-                  // FIXME (remove assert management code? Leaving it for now.)
 }
 
 void loop() {
