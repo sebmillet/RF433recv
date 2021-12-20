@@ -115,8 +115,8 @@ void setup() {
 #define reg4
 #define reg5
 #define reg6
-//#define reg7
-//#define reg8
+#define reg7
+#define reg8
 
 #ifdef reg1
         // FIRST CODE, inspired from FLO
