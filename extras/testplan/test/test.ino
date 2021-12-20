@@ -89,12 +89,25 @@ BUILDFUNC_CALLBACK(4)
 BUILDFUNC_CALLBACK(5)
 BUILDFUNC_CALLBACK(6)
 BUILDFUNC_CALLBACK(7)
+BUILDFUNC_CALLBACK(8)
 
 RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
+
+#ifdef DEBUG
+void dbg_output_free_memory() {
+    Serial.print(F("Free memory: "));
+    Serial.print(freeMemory());
+    Serial.print(F("\n"));
+}
+#else
+#define dbg_output_free_memory(...)
+#endif
 
 void setup() {
     pinMode(PIN_RFINPUT, INPUT);
     Serial.begin(115200);
+
+    dbg_output_free_memory();
 
 #define reg1
 #define reg2
@@ -103,6 +116,7 @@ void setup() {
 #define reg5
 #define reg6
 #define reg7
+#define reg8
 
 #ifdef reg1
         // FIRST CODE, inspired from FLO
@@ -244,11 +258,33 @@ void setup() {
     );
 #endif
 
+#ifdef reg8
+        // EIGHTH ONE, inspired from ADF
+    rf.register_Receiver(
+        RFMOD_MANCHESTER, // mod
+         4000, // initseq
+            0, // lo_prefix
+            0, // hi_prefix
+            0, // first_lo_ign
+          400, // lo_short
+            0, // lo_long
+            0, // hi_short (0 => take lo_short)
+            0, // hi_long  (0 => take lo_long)
+         1164, // lo_last
+         4000, // sep
+           16, // nb_bits
+    callback8,
+            0
+    );
+#endif
+
     rf.set_opt_wait_free_433(false);
     rf.activate_interrupts_handler();
 
     assert(true); // Written to avoid a warning "unused function"
                   // FIXME (remove assert management code? Leaving it for now.)
+
+    dbg_output_free_memory();
 }
 
 void handle_int_receive();
@@ -263,6 +299,8 @@ void loop() {
         rf.do_events();
     }
     Serial.print(F("----- END TEST -----\n"));
+
+    dbg_output_free_memory();
 
     while (1)
         ;

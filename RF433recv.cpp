@@ -37,6 +37,9 @@
 #include "RF433recv.h"
 #include <Arduino.h>
 
+    // Will work only if DEBUG macro is also set
+//#define DEBUG_AUTOMAT
+
 #define ASSERT_OUTPUT_TO_SERIAL
 
 #define assert(cond) { \
@@ -517,6 +520,7 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
         uint16_t sep, byte nb_bits, byte *pnb_elems) {
 
+#ifdef DEBUG_AUTOMAT
     dbgf("== mod = %d, initseq = %u, lo_prefix = %u, hi_prefix = %u, "
             "first_lo_ign = %u\n", mod, initseq, lo_prefix, hi_prefix,
             first_lo_ign);
@@ -524,6 +528,7 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
             lo_short, lo_long, hi_short, hi_long);
     dbgf("== lo_last = %u, sep = %u, nb_bits = %d, *pnb_elems = %d\n",
             lo_last, sep, nb_bits, *pnb_elems);
+#endif
 
     if (mod != RFMOD_MANCHESTER) {
         assert((lo_prefix && hi_prefix) || (!lo_prefix && !hi_prefix));
@@ -580,6 +585,7 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
     duration_t c_first_lo_ign_inf = compact(first_lo_ign >> 1);
     duration_t c_first_lo_ign_sup = compact(first_lo_ign + (first_lo_ign >> 1));
 
+#ifdef DEBUG_AUTOMAT
     dbgf(   "c_lo_short_inf = %5u\n"
             "c_lo_short_sup = %5u\n"
             "c_lo_long_inf  = %5u\n"
@@ -593,6 +599,7 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
     dbgf(   "c_sep          = %5u\n"
             "c_initseq      = %5u",
             c_sep, c_initseq);
+#endif
 
     size_t sz;
     auto_t *pauto;
@@ -744,7 +751,9 @@ void Receiver::reset() {
 bool Receiver::w_compare(duration_t minval, duration_t maxval, duration_t val)
         const {
 
+#ifdef DEBUG_AUTOMAT
     dbgf("Compare %u with [%u, %u]", val, minval, maxval);
+#endif
 
     if (val < minval || val > maxval)
         return false;
@@ -801,9 +810,11 @@ void Receiver::process_signal(duration_t compact_signal_duration,
             (r ? current->next_if_w_true : current->next_if_w_false);
         assert(next_status < dec_len);
 
+#ifdef DEBUG_AUTOMAT
         dbgf("d = %u, n = %d, status = %d, w = %d, next_status = %d",
                 compact_signal_duration, recorded->get_nb_bits(), status, w,
                 next_status);
+#endif
 
         status = next_status;
     } while (dec[status].w != W_TERMINATE && dec[status].w != W_WAIT_SIGNAL);
@@ -1349,6 +1360,41 @@ const uint16_t timings[] PROGMEM = {
     368,  1040,
    1304, 19376,
 
+    0,    4020,     // reg8: 03 e0 (manchester, 16-bit)
+    456,   336,
+    468,   320,
+    448,   344,
+    456,   332,
+    460,   332,
+    456,   320,
+    476,   724,
+    452,   332,
+    456,   340,
+    456,   320,
+    464,   332,
+    868,   340,
+    456,   344,
+    444,   348,
+    436,   360,
+    440,  4392,
+
+    0,    4156,     // reg8: f3 0f (manchester, 16-bit)
+    468,   732,
+    476,   316,
+    468,   316,
+    476,   324,
+    884,   312,
+    476,   724,
+    468,   328,
+    868,   328,
+    460,   340,
+    456,   332,
+    452,   752,
+    456,   344,
+    432,   364,
+    452,   332,
+    444,  3988,
+
     0, 0
 };
 const size_t timings_len = sizeof(timings) / sizeof(*timings);
@@ -1374,7 +1420,9 @@ void handle_int_receive() {
     } else {
         return;
     }
+#ifdef DEBUG_AUTOMAT
     dbg("--");
+#endif
 #endif
 
     if (handle_int_busy) {
@@ -1398,8 +1446,13 @@ void handle_int_receive() {
 
     duration_t compact_signal_duration = compact(signal_duration);
     Receiver *ptr_rec = RF_manager::get_head();
+
     while (ptr_rec) {
+
+#ifdef DEBUG_AUTOMAT
         dbgf("\nptr_rec = %lu", (unsigned long)ptr_rec);
+#endif
+
         ptr_rec->process_signal(compact_signal_duration, signal_val);
         ptr_rec = ptr_rec->get_next();
     }
