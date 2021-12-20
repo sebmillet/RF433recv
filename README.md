@@ -25,5 +25,143 @@ trigger interrupts, that is, D2 or D3.
 Usage
 -----
 
-tbd
+To see how to call library, you'll find an example here:
+
+[examples/01_recv/01_recv.ino](examples/01_recv/01_recv.ino)
+
+
+How to work out signal characteristics using the library RF433any
+-----------------------------------------------------------------
+
+The function `register_Receiver` takes signal characteristics (encoding type,
+signal timings) to do its job. How to work it out?
+
+The painful way is to record signal, using for example a low level signal
+recording like gnuradio or a Radio Frequencies sniffing library/code like
+[https://github.com/sebmillet/rf433snif](https://github.com/sebmillet/rf433snif)
+(There are many others.)
+Then, to deduct signal timings. Good luck!
+
+An easier way is to use RF433any library, found here:
+
+[https://github.com/sebmillet/RF433any](https://github.com/sebmillet/RF433any)
+
+and to execute the code 05_print_code_for_RF433recv_lib.ino found in the folder
+examples/05_print_code_for_RF433recv_lib
+
+Ultimately the code is the below one:
+
+[https://github.com/sebmillet/RF433any/blob/main/examples/05_print_code_for_RF433recv_lib/05_print_code_for_RF433recv_lib.ino](https://github.com/sebmillet/RF433any/blob/main/examples/05_print_code_for_RF433recv_lib/05_print_code_for_RF433recv_lib.ino)
+
+This code will output what `register_Receiver` needs to be called with, so as
+to decode the signal received.
+
+For example, if `05_print_code_for_RF433recv_lib.ino` outputs the below:
+
+    Waiting for signal
+    Decoded: yes, err: 0, code: T, rep: 1, bits: 32, data: 8A 34 E6 BF
+
+    // -----CODE START-----
+        // [WRITE THE DEVICE NAME HERE]
+    rf.register_Receiver(
+    RFMOD_TRIBIT, // mod
+     7052, // initseq
+        0, // lo_prefix
+        0, // hi_prefix
+        0, // first_lo_ign
+      580, // lo_short
+     1274, // lo_long
+        0, // hi_short (0 => take lo_short)
+        0, // hi_long  (0 => take lo_long)
+      520, // lo_last
+    65535, // sep
+       32  // nb_bits
+    );
+    // -----CODE END-----
+
+Then you can manage reception like this:
+
+```c++
+#include "RF433recv.h"
+#include <Arduino.h>
+
+    // Depends on your schematic - here, the Radio Frequencies device is
+    // plugged on Arduino' D2, that corresponds to interrupt number 0.
+#define PIN_RFINPUT  2
+#define INT_RFINPUT  0
+
+RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
+
+void callback1(const BitVector *recorded) {
+    Serial.print(F("Signal received from telecommand\n"));
+}
+
+void callback2(const BitVector *recorded) {
+    Serial.print(F("Signal received from telecommand, code = 8A34E6BF\n"));
+}
+
+void setup() {
+    pinMode(PIN_RFINPUT, INPUT);
+    Serial.begin(115200);
+
+        // [OTIO (no rolling code, 32-bit)]
+    rf.register_Receiver(
+    RFMOD_TRIBIT, // mod
+     4956, // initseq
+        0, // lo_prefix
+        0, // hi_prefix
+        0, // first_lo_ign
+      580, // lo_short
+     1274, // lo_long
+        0, // hi_short (0 => take lo_short)
+        0, // hi_long  (0 => take lo_long)
+      520, // lo_last
+     4956, // sep
+       32, // nb_bits
+    callback1,
+     2000
+    );
+    rf.register_callback(callback2, 2000,
+            new BitVector(32, 4, 0x8A, 0x34, 0xE6, 0xBF));
+
+    Serial.print(F("Waiting for signal\n"));
+
+    rf.activate_interrupts_handler();
+}
+
+void loop() {
+    rf.do_events();
+}
+```
+
+You can call register_callback without specifying the code, too. The code above
+is equivalent to the below (only showing what changes):
+
+```c++
+// ...
+
+        // [OTIO (no rolling code, 32-bit)]
+    rf.register_Receiver(
+    RFMOD_TRIBIT, // mod
+     4956, // initseq
+        0, // lo_prefix
+        0, // hi_prefix
+        0, // first_lo_ign
+      580, // lo_short
+     1274, // lo_long
+        0, // hi_short (0 => take lo_short)
+        0, // hi_long  (0 => take lo_long)
+      520, // lo_last
+     4956, // sep
+       32  // nb_bits
+    );
+    rf.register_callback(callback1, 2000);
+    rf.register_callback(callback2, 2000,
+            new BitVector(32, 4, 0x8A, 0x34, 0xE6, 0xBF));
+
+// ...
+```
+
+The value 2000 is the minimum the delay in milliseconds between two calls, so
+here it makes 2000 milliseconds = 2 seconds.
 

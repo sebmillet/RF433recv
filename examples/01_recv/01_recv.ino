@@ -141,20 +141,23 @@ void setup() {
         // OTIO (no rolling code, 32-bit)
     rf.register_Receiver(
         RFMOD_TRIBIT, // mod
-         6976, // initseq
+         4956, // initseq
             0, // lo_prefix
             0, // hi_prefix
             0, // first_lo_ign
-          562, // lo_short
-         1258, // lo_long
+          580, // lo_short
+         1274, // lo_long
             0, // hi_short (0 => take lo_short)
             0, // hi_long  (0 => take lo_long)
-          528, // lo_last
-         6996, // sep
+          520, // lo_last
+         4956, // sep
            32, // nb_bits
-    callback2,
+    callback1,
          2000
     );
+    rf.register_callback(callback2, 1000,
+            new BitVector(32, 4, 0x8A, 0x34, 0xE6, 0xBF));
+
     rf.register_callback(callback3, 1000);
     rf.register_callback(callback4, 200);
 
