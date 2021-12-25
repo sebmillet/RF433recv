@@ -136,7 +136,6 @@ BitVector::BitVector(short arg_nb_bits, short arg_nb_bytes, byte b0, byte b1,
     array[0] = b5;
 }
 
-
 void BitVector::reset() {
     assert(array);
     nb_bits = 0;
@@ -191,7 +190,7 @@ byte BitVector::get_nth_byte(byte n) const {
     // *VERY IMPORTANT (2)* WARNING
     //   THE RETURN VALUE IS MALLOC'D SO CALLER MUST THINK OF FREEING IT.
     //   For example:
-    //     char *s = data_to_str_with_malloc(data);
+    //     char *s = to_str(data);
     //     ...
     //     if (s)       // DON'T FORGET (s can be null)
     //         free(s); // DON'T FORGET! (if non-null, s must be freed)
@@ -246,11 +245,17 @@ short BitVector::cmp(const BitVector *p) const {
 // precision.
 // The three sets (first one looses 4 bits, middle looses 7, last looses 12)
 // have been chosen so that smaller durations don't loose too much precision.
+// The higher the number, the more precision gets lost. This could be seen as
+// 'the floating point number representation of the (very) poor man' (or,
+// floating point numbers without... a floating point!)
 //
 // Any way, keep in mind Arduino timer produces values always multiple of 4,
 // that shifts bit-loss by 2.
 // For example, the first set (that looses 4 bits) actually really looses 2 bits
 // of precision.
+// In this archive, the file
+//   test_compact.cpp
+// contains code to test compact/uncompact results, for a few numbers.
 duration_t compact(uint16_t u) {
 #ifdef NO_COMPACT_DURATIONS
         // compact not activated -> compact() is a no-op
@@ -290,190 +295,155 @@ uint16_t uncompact(duration_t b) {
 }
 
 
-// * ****** *******************************************************************
-// * auto_t *******************************************************************
-// * ****** *******************************************************************
-
-#ifdef NO_PROGMEM_FOR_AUTOMAT_TEMPLATES
-#define MY_PROGMEM
-#else
-#define MY_PROGMEM PROGMEM
-#endif
+// * ********** ***************************************************************
+// * autoline_t ***************************************************************
+// * ********** ***************************************************************
 
     // The below one corresponds to RFMOD_TRIBIT
-const auto_t automat_tribit[] MY_PROGMEM = {
+const autoline_t automat_tribit[] = {
 
-// Below, (T) means 'next status if test returns true' and
-//        (F) means 'next status if test returns false'.
+// Below, (T) means 'next status if test returns true'
+//        (F) means 'next status if test returns false'
 
-//    WHAT TO DO      MINVAL MAXVAL (T)  (F)
-    { W_WAIT_SIGNAL,       1,     1,  2,   0 }, //  0
-    { W_TERMINATE,         0,     0,  1,  99 }, //  1
-    { W_CHECK_DURATION,  251,   251, 18,   0 }, //  2
+//    WHAT TO DO        MINVAL             MAXVAL           (T) (F)
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,          2,   0 }, //  0
+    { W_TERMINATE,      ADX_UNDEF,         ADX_UNDEF,        1,  99 }, //  1
 
-    { W_RESET_BITS,        0,     0,  4,  99 }, //  3
+    { W_CHECK_DURATION, AD_INITSEQ_INF,    ADX_DMAX,
+                                 AD_INDIRECT | AD_NEXT_IF_TRUE,   0 }, //  2
 
-    { W_WAIT_SIGNAL,       0,     0,  5,   0 }, //  4
-    { W_CHECK_DURATION,  251,   251,  7,   6 }, //  5
-    { W_CHECK_DURATION,  251,   251, 10,   0 }, //  6
+    { W_RESET_BITS,     ADX_UNDEF,         ADX_UNDEF,        4,  99 }, //  3
 
-    { W_WAIT_SIGNAL,       1,     1,  8,   0 }, //  7
-    { W_CHECK_DURATION,  251,   251,  9,   2 }, //  8
-    { W_ADD_ZERO,          0,     0, 13,   0 }, //  9
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,         5,   0 }, //  4
+    { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_SHORT_SUP,  7,   6 }, //  5
+    { W_CHECK_DURATION, AD_LO_LONG_INF,    AD_LO_LONG_SUP,  10,   0 }, //  6
 
-    { W_WAIT_SIGNAL,       1,     1, 11,   0 }, // 10
-    { W_CHECK_DURATION,  251,   251, 12,   2 }, // 11
-    { W_ADD_ONE,           0,     0, 13,   0 }, // 12
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,          8,   0 }, //  7
+    { W_CHECK_DURATION, AD_HI_LONG_INF,    AD_HI_LONG_SUP,   9,   2 }, //  8
+    { W_ADD_ZERO,       ADX_UNDEF,         ADX_UNDEF,       13,   0 }, //  9
 
-    { W_CHECK_BITS,      251,   251, 14,   4 }, // 13
-    { W_WAIT_SIGNAL,       0,     0, 15,   0 }, // 14
-    { W_CHECK_DURATION,  251,   251, 16,   0 }, // 15
-    { W_WAIT_SIGNAL,       1,     1, 17,   0 }, // 16
-    { W_CHECK_DURATION,  251,   251,  1,   2 }, // 17
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         11,   0 }, // 10
+    { W_CHECK_DURATION, AD_HI_SHORT_INF,   AD_HI_SHORT_SUP, 12,   2 }, // 11
+    { W_ADD_ONE,        ADX_UNDEF,         ADX_UNDEF,       13,   0 }, // 12
+
+    { W_CHECK_BITS,     AD_NB_BITS,        AD_NB_BITS,      14,   4 }, // 13
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        15,   0 }, // 14
+    { W_CHECK_DURATION, AD_LO_LAST_INF,    AD_LO_LAST_SUP,  16,   0 }, // 15
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         17,   0 }, // 16
+    { W_CHECK_DURATION, AD_SEP_INF,        ADX_DMAX,         1,   2 }, // 17
 
         // Used only if there is a prefix
-    { W_WAIT_SIGNAL,       0,     0, 19,   0 }, // 18
-    { W_CHECK_DURATION,  251,   251, 20,   0 }, // 19
-    { W_WAIT_SIGNAL,       1,     1, 21,   0 }, // 20
-    { W_CHECK_DURATION,  251,   251,  3,   2 }  // 21
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        19,   0 }, // 18
+    { W_CHECK_DURATION, AD_LO_PREFIX_INF, AD_LO_PREFIX_SUP, 20,   0 }, // 19
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         21,   0 }, // 20
+    { W_CHECK_DURATION, AD_HI_PREFIX_INF, AD_HI_PREFIX_SUP,  3,   2 }  // 21
 };
-    // [CMT314159]
-    // Below, the number 4 showing up corresponds to the size of the prefix
-    // management part of the automat (from status 18 until status 21 => 4
-    // elements).
-    // By default, the status number 2 points to (if success) to status number
-    // 18, meaning, by default the automat *does* expect a prefix. If there is
-    // no prefix (most frequent case), the next status of status number 2 must
-    // be set (if success) to 3.
-    //
-    // This is why, later in this code, you have a line
-    //     pauto[2].next_if_w_true = 3;
-    // if there is no prefix.
-    //
-#define TRIBIT_NB_BYTES_WITH_PREFIX (sizeof(automat_tribit))
-#define TRIBIT_NB_BYTES_WITHOUT_PREFIX \
-    (TRIBIT_NB_BYTES_WITH_PREFIX - 4 * sizeof(*automat_tribit))
-#define TRIBIT_NB_ELEMS_WITH_PREFIX (ARRAYSZ(automat_tribit))
-#define TRIBIT_NB_ELEMS_WITHOUT_PREFIX (TRIBIT_NB_ELEMS_WITH_PREFIX - 4)
+#define TRIBIT_NB_ELEMS (ARRAYSZ(automat_tribit))
 
 // IMPORTANT - FIXME
 // ***NOT TESTED WITH A PREFIX***
 // IN REAL CONDITIONS, TESTED ONLY *WITHOUT* PREFIX
-const auto_t automat_tribit_inverted[] MY_PROGMEM = {
+const autoline_t automat_tribit_inverted[] = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
 
-//    WHAT TO DO       MINVAL MAXVAL (T)  (F)
-    { W_WAIT_SIGNAL,        1,     1,  2,   0 }, //  0
-    { W_TERMINATE,          0,     0,  1,  99 }, //  1
-    { W_CHECK_DURATION,   251,   251, 18,   0 }, //  2
+//    WHAT TO DO        MINVAL             MAXVAL           (T) (F)
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,          2,   0 }, //  0
+    { W_TERMINATE,      ADX_UNDEF,         ADX_UNDEF,        1,  99 }, //  1
+    { W_CHECK_DURATION, AD_INITSEQ_INF,    ADX_DMAX,        
+                                 AD_INDIRECT | AD_NEXT_IF_TRUE,   0 }, //  2
 
-    { W_WAIT_SIGNAL,        0,     0,  4,   0 }, //  3
-    { W_CHECK_DURATION,   251,   251,  5,   0 }, //  4
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,         4,   0 }, //  3
+    { W_CHECK_DURATION, AD_FIRST_LO_IGN_INF,
+                                           AD_FIRST_LO_IGN_SUP,
+                                                             5,   0 }, //  4
 
-    { W_RESET_BITS,         0,     0,  6,  99 }, //  5
+    { W_RESET_BITS,     ADX_UNDEF,         ADX_UNDEF,        6,  99 }, //  5
 
-    { W_WAIT_SIGNAL,        1,     1,  7,   0 }, //  6
-    { W_CHECK_DURATION,   251,   251,  9,   8 }, //  7
-    { W_CHECK_DURATION,   251,   251, 12,   2 }, //  8
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,          7,   0 }, //  6
+    { W_CHECK_DURATION, AD_HI_SHORT_INF,   AD_HI_SHORT_SUP,  9,   8 }, //  7
+    { W_CHECK_DURATION, AD_HI_LONG_INF,    AD_HI_LONG_SUP,  12,   2 }, //  8
 
-    { W_WAIT_SIGNAL,        0,     0, 10,   0 }, //  9
-    { W_CHECK_DURATION,   251,   251, 11,   0 }, // 10
-    { W_ADD_ZERO,           0,     0, 15,   0 }, // 11
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        10,   0 }, //  9
+    { W_CHECK_DURATION, AD_LO_LONG_INF,    AD_LO_LONG_SUP,  11,   0 }, // 10
+    { W_ADD_ZERO,       ADX_UNDEF,         ADX_UNDEF,       15,   0 }, // 11
 
-    { W_WAIT_SIGNAL,        0,     0, 13,   0 }, // 12
-    { W_CHECK_DURATION,   251,   251, 14,   0 }, // 13
-    { W_ADD_ONE,            0,     0, 15,   0 }, // 14
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        13,   0 }, // 12
+    { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_SHORT_SUP, 14,   0 }, // 13
+    { W_ADD_ONE,        ADX_UNDEF,         ADX_UNDEF,       15,   0 }, // 14
 
-    { W_CHECK_BITS,       251,   251, 16,   6 }, // 15
-    { W_WAIT_SIGNAL,        1,     1, 17,   0 }, // 16
-    { W_CHECK_DURATION,   251,   251,  1,   2 }, // 17
+    { W_CHECK_BITS,     AD_NB_BITS,        AD_NB_BITS,      16,   6 }, // 15
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         17,   0 }, // 16
+    { W_CHECK_DURATION, AD_SEP_INF,        ADX_DMAX,         1,   2 }, // 17
 
         // Used only if there is a prefix
-    { W_WAIT_SIGNAL,       0,     0, 19,   0 }, // 18
-    { W_CHECK_DURATION,  251,   251, 20,   0 }, // 19
-    { W_WAIT_SIGNAL,       1,     1, 21,   0 }, // 20
-    { W_CHECK_DURATION,  251,   251,  3,   2 }  // 21
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        19,   0 }, // 18
+    { W_CHECK_DURATION, AD_LO_PREFIX_INF,  AD_LO_PREFIX_SUP,20,   0 }, // 19
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         21,   0 }, // 20
+    { W_CHECK_DURATION, AD_HI_PREFIX_INF,  AD_HI_PREFIX_SUP, 3,   2 }  // 21
 };
-    // See comment [CMT314159] above about where do such formula come from
-#define TRIBIT_INVERTED_NB_BYTES_WITH_PREFIX (sizeof(automat_tribit_inverted))
-#define TRIBIT_INVERTED_NB_BYTES_WITHOUT_PREFIX \
-    (TRIBIT_INVERTED_NB_BYTES_WITH_PREFIX - \
-     4 * sizeof(*automat_tribit_inverted))
-#define TRIBIT_INVERTED_NB_ELEMS_WITH_PREFIX (ARRAYSZ(automat_tribit_inverted))
-#define TRIBIT_INVERTED_NB_ELEMS_WITHOUT_PREFIX \
-    (TRIBIT_INVERTED_NB_ELEMS_WITH_PREFIX - 4)
+#define TRIBIT_INVERTED_NB_ELEMS (ARRAYSZ(automat_tribit_inverted))
 
-const auto_t automat_manchester[] MY_PROGMEM = {
+const autoline_t automat_manchester[] = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
 
-//    WHAT TO DO       MINVAL MAXVAL (T)  (F)
-    { W_WAIT_SIGNAL,        1,     1,  2,   0 }, //  0
-    { W_TERMINATE,          0,     0,  1, 199 }, //  1
-    { W_CHECK_DURATION,   251,   251,  3,   0 }, //  2
+//    WHAT TO DO        MINVAL             MAXVAL           (T) (F)
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,          2,   0 }, //  0
+    { W_TERMINATE,      ADX_UNDEF,         ADX_UNDEF,        1, 199 }, //  1
+    { W_CHECK_DURATION, AD_INITSEQ_INF,    ADX_DMAX,         3,   0 }, //  2
 
-    { W_WAIT_SIGNAL,        0,     0,  4,   0 }, //  3
-    { W_CHECK_DURATION,   251,   251,  5,   0 }, //  4
-    { W_WAIT_SIGNAL,        1,     1,  6,   0 }, //  5
-    { W_CHECK_DURATION,   251,   251,  7,  32 }, //  6
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,         4,   0 }, //  3
+    { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_SHORT_SUP,  5,   0 }, //  4
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,          6,   0 }, //  5
+    { W_CHECK_DURATION, AD_HI_SHORT_INF,   AD_HI_SHORT_SUP,  7,  32 }, //  6
 
-    { W_RESET_BITS,         0,     0,  8, 199 }, //  7
+    { W_RESET_BITS,     ADX_UNDEF,         ADX_UNDEF,        8, 199 }, //  7
 
-    { W_WAIT_SIGNAL,        0,     0,  9,   0 }, //  8
-    { W_CHECK_DURATION,   251,   251, 10,   0 }, //  9
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,         9,   0 }, //  8
+    { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_SHORT_SUP, 10,   0 }, //  9
 
-    { W_WAIT_SIGNAL,        1,     1, 11,   0 }, // 10
-    { W_CHECK_DURATION,   251,   251, 13,  12 }, // 11
-    { W_CHECK_DURATION,   251,   251, 15,  29 }, // 12
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         11,   0 }, // 10
+    { W_CHECK_DURATION, AD_HI_SHORT_INF,   AD_HI_SHORT_SUP, 13,  12 }, // 11
+    { W_CHECK_DURATION, AD_HI_LONG_INF,    AD_HI_LONG_SUP,  15,  29 }, // 12
 
-    { W_ADD_ZERO,           0,     0, 14, 199 }, // 13
-    { W_CHECK_BITS,       251,   251, 36,   8 }, // 14
+    { W_ADD_ZERO,       ADX_UNDEF,         ADX_UNDEF,       14, 199 }, // 13
+    { W_CHECK_BITS,     AD_NB_BITS,        AD_NB_BITS,      36,   8 }, // 14
 
-    { W_ADD_ZERO,           0,     0, 16, 199 }, // 15
-    { W_CHECK_BITS,       251,   251, 36,  17 }, // 16
-    { W_WAIT_SIGNAL,        0,     0, 18,   0 }, // 17
-    { W_CHECK_DURATION,   251,   251, 20,  19 }, // 18
-    { W_CHECK_DURATION,   251,   251, 27,   0 }, // 19
+    { W_ADD_ZERO,       ADX_UNDEF,         ADX_UNDEF,       16, 199 }, // 15
+    { W_CHECK_BITS,     AD_NB_BITS,        AD_NB_BITS,      36,  17 }, // 16
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        18,   0 }, // 17
+    { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_SHORT_SUP, 20,  19 }, // 18
+    { W_CHECK_DURATION, AD_LO_LONG_INF,    AD_LO_LONG_SUP,  27,   0 }, // 19
 
-    { W_ADD_ONE,            1,     1, 21, 199 }, // 20
-    { W_CHECK_BITS,       251,   251, 34,  22 }, // 21
-    { W_WAIT_SIGNAL,        1,     1, 23,   0 }, // 22
-    { W_CHECK_DURATION,   251,   251, 24,   2 }, // 23
-    { W_WAIT_SIGNAL,        0,     0, 25,   0 }, // 24
-    { W_CHECK_DURATION,   251,   251, 20,  26 }, // 25
-    { W_CHECK_DURATION,   251,   251, 27,   0 }, // 26
+    { W_ADD_ONE,        ADX_UNDEF,         ADX_UNDEF,       21, 199 }, // 20
+    { W_CHECK_BITS,     AD_NB_BITS,        AD_NB_BITS,      34,  22 }, // 21
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         23,   0 }, // 22
+    { W_CHECK_DURATION, AD_HI_SHORT_INF,   AD_HI_SHORT_SUP, 24,   2 }, // 23
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        25,   0 }, // 24
+    { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_SHORT_SUP, 20,  26 }, // 25
+    { W_CHECK_DURATION, AD_LO_LONG_INF,    AD_LO_LONG_SUP,  27,   0 }, // 26
 
-    { W_ADD_ONE,            0,     0, 28, 199 }, // 27
-    { W_CHECK_BITS,       251,   251, 34,  10 }, // 28
+    { W_ADD_ONE,        ADX_UNDEF,         ADX_UNDEF,       28, 199 }, // 27
+    { W_CHECK_BITS,     AD_NB_BITS,        AD_NB_BITS,      34,  10 }, // 28
 
-    { W_CHECK_BITS,       251,   251, 30,   2 }, // 29
-    { W_CHECK_DURATION,   251,   251, 31,   2 }, // 30
-    { W_ADD_ZERO,           0,     0,  1, 199 }, // 31
+    { W_CHECK_BITS,     ADX_NB_BITS_M1,    ADX_NB_BITS_M1,  30,   2 }, // 29
+    { W_CHECK_DURATION, AD_SEP_INF,        ADX_DMAX,        31,   2 }, // 30
+    { W_ADD_ZERO,       ADX_UNDEF,         ADX_UNDEF,        1, 199 }, // 31
 
-    { W_CHECK_DURATION,   251,   251, 33,   2 }, // 32
-    { W_RESET_BITS,         0,     0, 17, 199 }, // 33
+    { W_CHECK_DURATION, AD_HI_LONG_INF,    AD_HI_LONG_SUP,  33,   2 }, // 32
+    { W_RESET_BITS,     ADX_UNDEF,         ADX_UNDEF,       17, 199 }, // 33
 
-    { W_WAIT_SIGNAL,        1,     1, 35,   0 }, // 34
-    { W_CHECK_DURATION,   251,   251,  2,   1 }, // 35
+    { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         35,   0 }, // 34
+    { W_CHECK_DURATION, AD_HI_SHORT_INF,   AD_HI_LONG_SUP,   2,   1 }, // 35
 
-    { W_WAIT_SIGNAL,        0,     0, 37,   0 }, // 36
-    { W_CHECK_DURATION,   251,   251,  0,   1 }  // 37
+    { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        37,   0 }, // 36
+    { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_LONG_SUP,   0,   1 }  // 37
 
 };
-#define MANCHESTER_NB_BYTES_WITHOUT_PREFIX (sizeof(automat_manchester))
-#define MANCHESTER_NB_ELEMS_WITHOUT_PREFIX (ARRAYSZ(automat_manchester))
-
-void myset(auto_t *dec, byte dec_len, byte line, uint16_t minv, uint16_t maxv) {
-    assert(line < dec_len);
-    assert(dec[line].minval == 251);
-    assert(dec[line].maxval == 251);
-
-    dec[line].minval = minv;
-    dec[line].maxval = maxv;
-}
+#define MANCHESTER_NB_ELEMS (ARRAYSZ(automat_manchester))
 
     // TODO (?)
     // The boundaries are calculated so that a given signal length will be
@@ -494,31 +464,21 @@ void myset(auto_t *dec, byte dec_len, byte line, uint16_t minv, uint16_t maxv) {
     //
     // For now the author prefers to keep it simple, and always go the laxist
     // way.  ;-D
-void get_boundaries(uint16_t lo_short, uint16_t lo_long,
-        duration_t& lo_short_inf, duration_t& lo_short_sup,
-        duration_t& lo_long_inf, duration_t& lo_long_sup) {
-    lo_short_inf = compact(lo_short >> 2);
-    lo_short_sup = compact((lo_short + lo_long) >> 1);
-    lo_long_inf = compact(lo_short_sup + 1);
-    lo_long_sup = compact(lo_long + (lo_long >> 1));
+void get_boundaries(uint16_t lo_short, uint16_t lo_long, duration_t *pvalues,
+        byte ad_idx_short_inf, byte ad_idx_short_sup,
+        byte ad_idx_long_inf, byte ad_idx_long_sup) {
+    pvalues[ad_idx_short_inf] = compact(lo_short >> 2);
+    pvalues[ad_idx_short_sup] = compact((lo_short + lo_long) >> 1);
+    pvalues[ad_idx_long_inf] = pvalues[ad_idx_short_sup] + 1;
+    pvalues[ad_idx_long_sup] = compact(lo_long + (lo_long >> 1));
 }
 
-void my_pgm_memcpy(void *dest, const void *src, size_t n) {
-#ifdef NO_PROGMEM_FOR_AUTOMAT_TEMPLATES
-    memcpy(dest, src, n);
-#else
-    const char *walker = (const char*)src;
-    char *d = (char *)dest;
-    for (size_t i = 0; i < n; ++i) {
-        *(d++) = pgm_read_byte(walker++);
-    }
-#endif
-}
-
-auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
+// TODO
+//   build_automat should be turned into autoexec_t constructor
+autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
         uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
-        uint16_t sep, byte nb_bits, byte *pnb_elems) {
+        uint16_t sep, byte nb_bits) {
 
 #ifdef DEBUG_AUTOMAT
     dbgf("== mod = %d, initseq = %u, lo_prefix = %u, hi_prefix = %u, "
@@ -526,8 +486,8 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
             first_lo_ign);
     dbgf("== lo_short = %u, lo_long = %u, hi_short = %u, hi_long = %u\n",
             lo_short, lo_long, hi_short, hi_long);
-    dbgf("== lo_last = %u, sep = %u, nb_bits = %d, *pnb_elems = %d\n",
-            lo_last, sep, nb_bits, *pnb_elems);
+    dbgf("== lo_last = %u, sep = %u, nb_bits = %d\n",
+            lo_last, sep, nb_bits);
 #endif
 
     if (mod != RFMOD_MANCHESTER) {
@@ -547,168 +507,105 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         hi_long = hi_short << 1;
     }
 
-    duration_t c_lo_short_inf;
-    duration_t c_lo_short_sup;
-    duration_t c_lo_long_inf;
-    duration_t c_lo_long_sup;
-    get_boundaries(lo_short, lo_long, c_lo_short_inf, c_lo_short_sup,
-            c_lo_long_inf, c_lo_long_sup);
-    duration_t c_hi_short_inf;
-    duration_t c_hi_short_sup;
-    duration_t c_hi_long_inf;
-    duration_t c_hi_long_sup;
-    get_boundaries(hi_short, hi_long, c_hi_short_inf, c_hi_short_sup,
-            c_hi_long_inf, c_hi_long_sup);
-    duration_t c_sep = compact(sep - (sep >> 2));
-    duration_t c_l = (c_lo_long_sup >= c_hi_long_sup
-            ? c_lo_long_sup : c_hi_long_sup);
-    if (c_sep <= c_l)
-        c_sep = c_l + 1;
-    duration_t c_initseq = compact(initseq - (initseq >> 2));
+    autoexec_t *pax = new autoexec_t;
+    duration_t *pvalues = pax->values;
 
-    duration_t c_lo_prefix_inf;
-    duration_t c_lo_prefix_sup;
-    duration_t c_hi_prefix_inf;
-    duration_t c_hi_prefix_sup;
+    get_boundaries(lo_short, lo_long, pvalues,
+            AD_LO_SHORT_INF, AD_LO_SHORT_SUP, AD_LO_LONG_INF, AD_LO_LONG_SUP);
+
+    get_boundaries(hi_short, hi_long, pvalues,
+            AD_HI_SHORT_INF, AD_HI_SHORT_SUP, AD_HI_LONG_INF, AD_HI_LONG_SUP);
+
+    pvalues[AD_SEP_INF] = compact(sep - (sep >> 2));
+
+    duration_t long_sup = (pvalues[AD_LO_LONG_SUP] >= pvalues[AD_HI_LONG_SUP]
+            ? pvalues[AD_LO_LONG_SUP] : pvalues[AD_HI_LONG_SUP]);
+    if (pvalues[AD_SEP_INF] <= long_sup)
+        pvalues[AD_SEP_INF] = long_sup + 1;
+
+    pvalues[AD_INITSEQ_INF] = compact(initseq - (initseq >> 2));
+
     if (lo_prefix) {
-        c_lo_prefix_inf = compact(lo_prefix - (lo_prefix >> 2));
-        c_lo_prefix_sup = compact(lo_prefix + (lo_prefix >> 2));
-        c_hi_prefix_inf = compact(hi_prefix - (hi_prefix >> 2));
-        c_hi_prefix_sup = compact(hi_prefix + (hi_prefix >> 2));
+        pvalues[AD_LO_PREFIX_INF] = compact(lo_prefix - (lo_prefix >> 2));
+        pvalues[AD_LO_PREFIX_SUP] = compact(lo_prefix + (lo_prefix >> 2));
+        pvalues[AD_HI_PREFIX_INF] = compact(hi_prefix - (hi_prefix >> 2));
+        pvalues[AD_HI_PREFIX_SUP] = compact(hi_prefix + (hi_prefix >> 2));
+    } else {
+            // Not necessary (unused if lo_prefix is zero)... but cleaner.
+            // I put a value anyway, it is cleaner because in case the values
+            // are tested (this without a doubt would be a bug), the bad
+            // consequences will be repeatable.
+            // Why choosing 32000?
+            //   Why not?
+        pvalues[AD_LO_PREFIX_INF] = compact(32000);
+        pvalues[AD_LO_PREFIX_SUP] = compact(32000);
+        pvalues[AD_HI_PREFIX_INF] = compact(32000);
+        pvalues[AD_HI_PREFIX_SUP] = compact(32000);
     }
 
-    duration_t c_lo_last_inf =
-        (lo_last ? compact(lo_last >> 1) : c_lo_short_inf);
-    duration_t c_lo_last_sup =
-        (lo_last ? compact(lo_last + (lo_last >> 1)) : c_lo_long_sup);
+    pvalues[AD_LO_LAST_INF] =
+        (lo_last ? compact(lo_last >> 1) : pvalues[AD_LO_SHORT_INF]);
+    pvalues[AD_LO_LAST_SUP] =
+        (lo_last ? compact(lo_last + (lo_last >> 1)) : pvalues[AD_LO_LONG_SUP]);
 
-    duration_t c_first_lo_ign_inf = compact(first_lo_ign >> 1);
-    duration_t c_first_lo_ign_sup = compact(first_lo_ign + (first_lo_ign >> 1));
+    pvalues[AD_FIRST_LO_IGN_INF] = compact(first_lo_ign >> 1);
+    pvalues[AD_FIRST_LO_IGN_SUP] =
+        compact(first_lo_ign + (first_lo_ign >> 1));
+
+    pvalues[AD_NB_BITS] = nb_bits;
 
 #ifdef DEBUG_AUTOMAT
-    dbgf(   "c_lo_short_inf = %5u\n"
-            "c_lo_short_sup = %5u\n"
-            "c_lo_long_inf  = %5u\n"
-            "c_lo_long_sup  = %5u\n",
-            c_lo_short_inf, c_lo_short_sup, c_lo_long_inf, c_lo_long_sup);
-    dbgf(   "c_hi_short_inf = %5u\n"
-            "c_hi_short_sup = %5u\n"
-            "c_hi_long_inf  = %5u\n"
-            "c_hi_long_sup  = %5u\n",
-            c_hi_short_inf, c_hi_short_sup, c_hi_long_inf, c_hi_long_sup);
-    dbgf(   "c_sep          = %5u\n"
-            "c_initseq      = %5u",
-            c_sep, c_initseq);
+    dbgf("c_lo_short_inf = %5u\n"
+         "c_lo_short_sup = %5u\n"
+         "c_lo_long_inf  = %5u\n"
+         "c_lo_long_sup  = %5u\n",
+         pvalues[AD_LO_SHORT_INF], pvalues[AD_LO_SHORT_SUP],
+         pvalues[AD_LO_LONG_INF], pvalues[AD_LO_LONG_SUP]);
+    dbgf("c_hi_short_inf = %5u\n"
+         "c_hi_short_sup = %5u\n"
+         "c_hi_long_inf  = %5u\n"
+         "c_hi_long_sup  = %5u\n",
+         pvalues[AD_HI_SHORT_INF], pvalues[AD_HI_SHORT_SUP],
+         pvalues[AD_HI_LONG_INF], pvalues[AD_HI_LONG_SUP]);
+    dbgf("c_sep_inf      = %5u\n"
+         "c_initseq_inf  = %5u",
+         pvalues[AD_SEP_INF], pvalues[AD_INITSEQ_INF]);
+    dbgf("nb_bits        = %u\n",
+         pvalues[AD_NB_BITS]);
 #endif
-
-    size_t sz;
-    auto_t *pauto;
 
     switch (mod) {
 
     case RFMOD_TRIBIT:
 
-        sz = (lo_prefix
-                ? TRIBIT_NB_BYTES_WITH_PREFIX : TRIBIT_NB_BYTES_WITHOUT_PREFIX);
-        *pnb_elems = (lo_prefix
-                ? TRIBIT_NB_ELEMS_WITH_PREFIX : TRIBIT_NB_ELEMS_WITHOUT_PREFIX);
-
-        pauto = (auto_t*)malloc(sz);
-        my_pgm_memcpy(pauto, automat_tribit, sz);
-
-        myset(pauto, *pnb_elems, 2, c_initseq, compact(65535));
-        myset(pauto, *pnb_elems, 5, c_lo_short_inf, c_lo_short_sup);
-        myset(pauto, *pnb_elems, 6, c_lo_long_inf, c_lo_long_sup);
-        myset(pauto, *pnb_elems, 8, c_hi_long_inf, c_hi_long_sup);
-        myset(pauto, *pnb_elems, 11, c_hi_short_inf, c_hi_short_sup);
-        myset(pauto, *pnb_elems, 13, nb_bits, nb_bits);
-        myset(pauto, *pnb_elems, 15, c_lo_last_inf, c_lo_last_sup);
-        myset(pauto, *pnb_elems, 17, c_sep, compact(65535));
-
-        if (lo_prefix) {
-            myset(pauto, *pnb_elems, 19, c_lo_prefix_inf, c_lo_prefix_sup);
-            myset(pauto, *pnb_elems, 21, c_hi_prefix_inf, c_hi_prefix_sup);
-        } else {
-            pauto[2].next_if_w_true = 3;
-        }
+        pax->mat_len = TRIBIT_NB_ELEMS;
+        pax->mat = automat_tribit;
+        pvalues[AD_NEXT_IF_TRUE] = lo_prefix ? 18  : 3;
 
         break;
 
     case RFMOD_TRIBIT_INVERTED:
 
-// * AS WRITTEN EARLIER, NOT TESTED WITH A PREFIX *
-
-        sz = (lo_prefix ? TRIBIT_INVERTED_NB_BYTES_WITH_PREFIX
-                : TRIBIT_INVERTED_NB_BYTES_WITHOUT_PREFIX);
-        *pnb_elems = (lo_prefix ? TRIBIT_INVERTED_NB_ELEMS_WITH_PREFIX
-                : TRIBIT_INVERTED_NB_ELEMS_WITHOUT_PREFIX);
-
-        pauto = (auto_t*)malloc(sz);
-        my_pgm_memcpy(pauto, automat_tribit_inverted, sz);
-
-        myset(pauto, *pnb_elems, 2, c_initseq, compact(65535));
-        myset(pauto, *pnb_elems, 4, c_first_lo_ign_inf, c_first_lo_ign_sup);
-        myset(pauto, *pnb_elems, 7, c_hi_short_inf, c_hi_short_sup);
-        myset(pauto, *pnb_elems, 8, c_hi_long_inf, c_hi_long_sup);
-        myset(pauto, *pnb_elems, 10, c_lo_long_inf, c_lo_long_sup);
-        myset(pauto, *pnb_elems, 13, c_lo_short_inf, c_lo_short_sup);
-        myset(pauto, *pnb_elems, 15, nb_bits, nb_bits);
-        myset(pauto, *pnb_elems, 17, c_sep, compact(65535));
-
-        if (lo_prefix) {
-            myset(pauto, *pnb_elems, 19, c_lo_prefix_inf, c_lo_prefix_sup);
-            myset(pauto, *pnb_elems, 21, c_hi_prefix_inf, c_hi_prefix_sup);
-        } else {
-            pauto[2].next_if_w_true = 3;
-        }
+        pax->mat_len = TRIBIT_INVERTED_NB_ELEMS;
+        pax->mat = automat_tribit_inverted;
+            // As written earlier, not tested with a prefix
+        pvalues[AD_NEXT_IF_TRUE] = lo_prefix ? 18  : 3;
 
         break;
 
     case RFMOD_MANCHESTER:
 
         assert(!lo_prefix);
-
-        sz = MANCHESTER_NB_BYTES_WITHOUT_PREFIX;
-        *pnb_elems = MANCHESTER_NB_ELEMS_WITHOUT_PREFIX;
-
-        pauto = (auto_t*)malloc(sz);
-        my_pgm_memcpy(pauto, automat_manchester, sz);
-
-        myset(pauto, *pnb_elems, 2, c_initseq, compact(65535));
-        myset(pauto, *pnb_elems, 4, c_lo_short_inf, c_lo_short_sup);
-        myset(pauto, *pnb_elems, 6, c_hi_short_inf, c_hi_short_sup);
-        myset(pauto, *pnb_elems, 9, c_lo_short_inf, c_lo_short_sup);
-        myset(pauto, *pnb_elems, 11, c_hi_short_inf, c_hi_short_sup);
-        myset(pauto, *pnb_elems, 12, c_hi_long_inf, c_hi_long_sup);
-        myset(pauto, *pnb_elems, 14, nb_bits, nb_bits);
-        myset(pauto, *pnb_elems, 16, nb_bits, nb_bits);
-        myset(pauto, *pnb_elems, 18, c_lo_short_inf, c_lo_short_sup);
-        myset(pauto, *pnb_elems, 19, c_lo_long_inf, c_lo_long_sup);
-        myset(pauto, *pnb_elems, 21, nb_bits, nb_bits);
-        myset(pauto, *pnb_elems, 23, c_hi_short_inf, c_hi_short_sup);
-        myset(pauto, *pnb_elems, 25, c_lo_short_inf, c_lo_short_sup);
-        myset(pauto, *pnb_elems, 26, c_lo_long_inf, c_lo_long_sup);
-        myset(pauto, *pnb_elems, 28, nb_bits, nb_bits);
-        myset(pauto, *pnb_elems, 29, nb_bits - 1, nb_bits - 1);
-        myset(pauto, *pnb_elems, 30, c_sep, compact(65535));
-        myset(pauto, *pnb_elems, 32, c_hi_long_inf, c_hi_long_sup);
-
-        myset(pauto, *pnb_elems, 35, c_hi_short_inf, c_hi_long_sup);
-        myset(pauto, *pnb_elems, 37, c_lo_short_inf, c_lo_long_sup);
-
+        pax->mat_len = MANCHESTER_NB_ELEMS;
+        pax->mat = automat_manchester;
+        pvalues[AD_NEXT_IF_TRUE] = 255; // Not used
         break;
 
     default:
         assert(false);
     }
 
-        // Defensive programming
-    for (byte i = 0; i < *pnb_elems; ++i) {
-        assert(pauto[i].minval != 251);
-        assert(pauto[i].maxval != 251);
-    }
-
-    return pauto;
+    return pax;
 }
 
 
@@ -716,10 +613,8 @@ auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
 // * Receiver *****************************************************************
 // * ******** *****************************************************************
 
-Receiver::Receiver(auto_t *arg_dec, const unsigned short arg_dec_len,
-            const byte arg_n):
-        dec(arg_dec),
-        dec_len(arg_dec_len),
+Receiver::Receiver(autoexec_t *arg_pax, byte arg_n):
+        pax(arg_pax),
         n(arg_n),
         status(0),
         has_value(false),
@@ -728,13 +623,14 @@ Receiver::Receiver(auto_t *arg_dec, const unsigned short arg_dec_len,
 
     recorded = new BitVector(n);
 
-    assert(dec);
-    assert(dec_len);
+    assert(pax);
     assert(n);
     assert(recorded);
 }
 
 Receiver::~Receiver() {
+    if (pax)
+        delete pax;
     if (recorded)
         delete recorded;
 }
@@ -760,16 +656,39 @@ bool Receiver::w_compare(duration_t minval, duration_t maxval, duration_t val)
     return true;
 }
 
+inline duration_t Receiver::get_val(byte idx) const {
+    if (idx < AD_NB_FIELDS) {
+        return pax->values[idx];
+    } else if (idx == ADX_UNDEF) {
+        return 42;   // Value returned does not matter;
+    } else if (idx == ADX_ZERO) {
+        return 0;
+    } else if (idx == ADX_ONE) {
+        return 1;
+    } else if (idx == ADX_DMAX) {
+        return compact(65535);
+    } else if (idx == ADX_NB_BITS_M1) {
+        return pax->values[AD_NB_BITS] - 1;
+    } else {
+        assert(false);
+    }
+    return -42;   // Never executed
+}
+
 void Receiver::process_signal(duration_t compact_signal_duration,
         byte signal_val) {
+    const autoline_t *mat = pax->mat;
     do {
-        const auto_t *current = &dec[status];
+        const autoline_t *current = &mat[status];
         const byte w = current->w;
+
+        duration_t minv = get_val(current->ad_field_idx_minval);
+        duration_t maxv = get_val(current->ad_field_idx_maxval);
 
         bool r;
         switch (w) {
         case W_WAIT_SIGNAL:
-            r = w_compare(current->minval, current->maxval, signal_val);
+            r = w_compare(minv, maxv, signal_val);
             break;
 
         case W_TERMINATE:
@@ -778,8 +697,7 @@ void Receiver::process_signal(duration_t compact_signal_duration,
             break;
 
         case W_CHECK_DURATION:
-            r = w_compare(current->minval, current->maxval,
-                    compact_signal_duration);
+            r = w_compare(minv, maxv, compact_signal_duration);
             break;
 
         case W_RESET_BITS:
@@ -798,8 +716,7 @@ void Receiver::process_signal(duration_t compact_signal_duration,
             break;
 
         case W_CHECK_BITS:
-            r = w_compare(current->minval, current->maxval,
-                    recorded->get_nb_bits());
+            r = w_compare(minv, maxv, recorded->get_nb_bits());
             break;
 
         default:
@@ -808,7 +725,10 @@ void Receiver::process_signal(duration_t compact_signal_duration,
 
         byte next_status =
             (r ? current->next_if_w_true : current->next_if_w_false);
-        assert(next_status < dec_len);
+        if (next_status & AD_INDIRECT)
+            next_status = pax->values[next_status & ~AD_INDIRECT];
+
+        assert(next_status < pax->mat_len);
 
 #ifdef DEBUG_AUTOMAT
         dbgf("d = %u, n = %d, status = %d, w = %d, next_status = %d",
@@ -817,7 +737,7 @@ void Receiver::process_signal(duration_t compact_signal_duration,
 #endif
 
         status = next_status;
-    } while (dec[status].w != W_TERMINATE && dec[status].w != W_WAIT_SIGNAL);
+    } while (mat[status].w != W_TERMINATE && mat[status].w != W_WAIT_SIGNAL);
 }
 
 void Receiver::attach(Receiver* ptr_rec) {
@@ -899,12 +819,11 @@ void RF_manager::register_Receiver(byte mod, uint16_t initseq,
         void (*func)(const BitVector *recorded),
         uint32_t min_delay_between_two_calls) {
 
-    byte decoder_nb_elems;
-    auto_t *decoder = build_automat(mod, initseq, lo_prefix, hi_prefix,
+    autoexec_t *dex = build_automat(mod, initseq, lo_prefix, hi_prefix,
             first_lo_ign, lo_short, lo_long, hi_short, hi_long, lo_last, sep,
-            nb_bits, &decoder_nb_elems);
+            nb_bits);
 
-    Receiver *ptr_rec = new Receiver(decoder, decoder_nb_elems, nb_bits);
+    Receiver *ptr_rec = new Receiver(dex, nb_bits);
     Receiver *tail = get_tail();
     if (!tail) {
         head = ptr_rec;
@@ -1091,8 +1010,18 @@ volatile uint16_t RF_manager::IH_wait_free_last16;
 // * Interrupt Handler ********************************************************
 // * ***************** ********************************************************
 
+#define treg1
+#define treg2
+#define treg3
+#define treg4
+#define treg5
+#define treg6
+#define treg7
+#define treg8
+
 #ifdef SIMULATE_INTERRUPTS
 const uint16_t timings[] PROGMEM = {
+#ifdef treg1
     0,    24116,    // reg1: 07 51 (tribit_inv, 12-bit)
     672,    612,
     1336,  1260,
@@ -1123,7 +1052,9 @@ const uint16_t timings[] PROGMEM = {
     1308,   636,
     1312,  1292,
     668,  65148,
+#endif
 
+#ifdef treg2
     0,     7020,    // reg2: ad 15 (tribit, 16-bit)
     1292,   520,
     592,   1220,
@@ -1142,7 +1073,9 @@ const uint16_t timings[] PROGMEM = {
     560,   1264,
     1260,   560,
     504,  65535,
+#endif
 
+#ifdef treg3
     0,    24100,    // reg3: d5 62 (tribit_inv, 16-bit)
     2064,  1432,
     468,   1424,
@@ -1161,7 +1094,9 @@ const uint16_t timings[] PROGMEM = {
     1060,  1456,
     448,    844,
     1020, 55356,
+#endif
 
+#ifdef treg4
     0,    10044,    // reg4: d3 e5 (manchester, 16-bit)
     1144,  2308,
     1192,  1108,
@@ -1194,7 +1129,9 @@ const uint16_t timings[] PROGMEM = {
     1136,  1156,
     1148,  1164,
     1140, 52456,
+#endif
 
+#ifdef treg5
     0,     5560,    // reg5: 4e 9f a0 a1 (manchester, 32-bit)
     1136,  1156,
     1136,  2316,
@@ -1249,7 +1186,9 @@ const uint16_t timings[] PROGMEM = {
     1128,  1168,
     1136,  1176,
     1124, 30000,
+#endif
 
+#ifdef treg7
     0,    30000,    // reg7: 55 (manchester, 8-bit)
     1168,  1128,
     1156,  2304,
@@ -1283,7 +1222,9 @@ const uint16_t timings[] PROGMEM = {
     1156,  2284,    // ISSUE HERE (2284 instead of a separator like 30000)
     2328,  1140,
     1156, 30000,
+#endif
 
+#ifdef treg6
     0,   17884,     // reg6: 18 24 46 c1 d7 48 c8 66 08 (tribit, 72-bit)
     1432, 1416,
     424,   976,
@@ -1359,7 +1300,9 @@ const uint16_t timings[] PROGMEM = {
     388,  1024,
     368,  1040,
    1304, 19376,
+#endif
 
+#ifdef treg8
     0,    4020,     // reg8: 03 e0 (manchester, 16-bit)
     456,   336,
     468,   320,
@@ -1394,6 +1337,7 @@ const uint16_t timings[] PROGMEM = {
     432,   364,
     452,   332,
     444,  3988,
+#endif
 
     0, 0
 };

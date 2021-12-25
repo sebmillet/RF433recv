@@ -56,9 +56,6 @@
 #warning "NO_COMPACT_DURATIONS MACRO DEFINED!"
 #endif
 
-    // Don't uncomment this unless you know what you are doing
-//#define NO_PROGMEM_FOR_AUTOMAT_TEMPLATES
-
 #ifdef DEBUG
 
 #include "RF433Debug.h"
@@ -151,12 +148,58 @@ uint16_t uncompact(duration_t b);
 #define W_ADD_ONE        5
 #define W_CHECK_BITS     6
 
-struct auto_t {
+enum ad_field_idx {
+    AD_INITSEQ_INF,
+    AD_LO_PREFIX_INF,
+    AD_LO_PREFIX_SUP,
+    AD_HI_PREFIX_INF,
+    AD_HI_PREFIX_SUP,
+    AD_FIRST_LO_IGN_INF,
+    AD_FIRST_LO_IGN_SUP,
+    AD_LO_SHORT_INF,
+    AD_LO_SHORT_SUP,
+    AD_LO_LONG_INF,
+    AD_LO_LONG_SUP,
+    AD_HI_SHORT_INF,
+    AD_HI_SHORT_SUP,
+    AD_HI_LONG_INF,
+    AD_HI_LONG_SUP,
+    AD_LO_LAST_INF,
+    AD_LO_LAST_SUP,
+    AD_SEP_INF,
+    AD_NB_BITS,
+    AD_NEXT_IF_TRUE,
+    AD_NB_FIELDS,
+        // The indexes named 'ADX_' (instead of 'AD_') are *not* used to
+        // designate an element inside autoexec_t line:
+        //   duration_t values[AD_NB_FIELDS];
+        // Why 196?
+        //   Because it is big enough to show to this code reader that it is
+        //   different from AD_ constants.
+        //   I could have chosen 50, or 128, or 200.
+    ADX_UNDEF = 196,    // Keep in mind, 196 is 100% meaningless - only
+                        // important thing is, it must be far enough from 255
+                        // (so that other ADX_ constants have enough values
+                        // left) and above to, or equal to, AD_NB_FIELDS.
+    ADX_DMAX,
+    ADX_ZERO,
+    ADX_ONE,
+    ADX_NB_BITS_M1
+};
+#define AD_INDIRECT 0x80
+
+struct autoline_t {
     byte w;
-    duration_t minval;
-    duration_t maxval;
+    byte ad_field_idx_minval;
+    byte ad_field_idx_maxval;
     byte next_if_w_true;
     byte next_if_w_false;
+};
+
+struct autoexec_t {
+    const autoline_t *mat;
+    unsigned short mat_len;
+    duration_t values[AD_NB_FIELDS];
 };
 
 struct callback_t {
@@ -168,15 +211,14 @@ struct callback_t {
     callback_t *next;
 };
 
-auto_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
+autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         uint16_t hi_prefix, uint16_t first_lo_ign, uint16_t lo_short,
         uint16_t lo_long, uint16_t hi_short, uint16_t hi_long, uint16_t lo_last,
-        uint16_t sep, byte nb_bits, byte *pnb_elems);
+        uint16_t sep, byte nb_bits);
 
 class Receiver {
     private:
-        auto_t *dec;
-        const unsigned short dec_len;
+        const autoexec_t *pax;
         const byte n;
         byte status;
         BitVector *recorded;
@@ -191,9 +233,10 @@ class Receiver {
 
         callback_t* get_callback_tail() const;
 
+        duration_t get_val(byte idx) const;
+
     public:
-        Receiver(auto_t *arg_dec, const unsigned short arg_dec_len,
-                const byte n);
+        Receiver(autoexec_t *arg_pax, byte n);
         ~Receiver();
 
         void process_signal(duration_t compact_signal_duration,
