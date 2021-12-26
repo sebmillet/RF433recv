@@ -499,8 +499,6 @@ autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         }
     } else {
         assert(!lo_prefix && !hi_prefix);
-        assert(!lo_long);
-        assert(!hi_long);
         lo_long = lo_short << 1;
         if (!hi_short)
             hi_short = lo_short;

@@ -1,4 +1,4 @@
-// 01_recv.ino
+// 02_recv.ino
 
 // Example sketch that comes along with RF433recv library
 // Simply receives codes

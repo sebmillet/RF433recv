@@ -27,7 +27,7 @@ Usage
 
 To see how to call library, you'll find an example here:
 
-[examples/01_recv/01_recv.ino](examples/01_recv/01_recv.ino)
+[examples/01_generic/01_generic.ino](examples/01_generic/01_generic.ino)
 
 
 How to work out signal characteristics using the library RF433any
@@ -46,38 +46,38 @@ An easier way is to use RF433any library, found here:
 
 [https://github.com/sebmillet/RF433any](https://github.com/sebmillet/RF433any)
 
-and to execute the code 05_print_code_for_RF433recv_lib.ino found in the folder
-examples/05_print_code_for_RF433recv_lib
+and to execute the code 01_main.ino found in the folder
+examples/01_main
 
 Ultimately the code is the below one:
 
-[https://github.com/sebmillet/RF433any/blob/main/examples/05_print_code_for_RF433recv_lib/05_print_code_for_RF433recv_lib.ino](https://github.com/sebmillet/RF433any/blob/main/examples/05_print_code_for_RF433recv_lib/05_print_code_for_RF433recv_lib.ino)
+[https://github.com/sebmillet/RF433any/blob/main/examples/01_main/01_main.ino](https://github.com/sebmillet/RF433any/blob/main/examples/01_main/01_main.ino)
 
 This code will output what `register_Receiver` needs to be called with, so as
 to decode the signal received.
 
-For example, if `05_print_code_for_RF433recv_lib.ino` outputs the below:
+For example, if `01_main.ino` outputs the below:
 
     Waiting for signal
-    Decoded: yes, err: 0, code: T, rep: 1, bits: 32, data: 8A 34 E6 BF
+    Data: 8a 34 e6 bf
 
-    // -----CODE START-----
-        // [WRITE THE DEVICE NAME HERE]
+    -----CODE START-----
+    // [WRITE THE DEVICE NAME HERE]
     rf.register_Receiver(
-    RFMOD_TRIBIT, // mod
-     7052, // initseq
+        RFMOD_TRIBIT, // mod
+        7056, // initseq
         0, // lo_prefix
         0, // hi_prefix
         0, // first_lo_ign
-      580, // lo_short
-     1274, // lo_long
+        580, // lo_short
+        1274, // lo_long
         0, // hi_short (0 => take lo_short)
         0, // hi_long  (0 => take lo_long)
-      520, // lo_last
-    65535, // sep
-       32  // nb_bits
+        520, // lo_last
+        7056, // sep
+        32  // nb_bits
     );
-    // -----CODE END-----
+    -----CODE END-----
 
 Then you can manage reception like this:
 
@@ -106,20 +106,20 @@ void setup() {
 
         // [OTIO (no rolling code, 32-bit)]
     rf.register_Receiver(
-    RFMOD_TRIBIT, // mod
-     4956, // initseq
-        0, // lo_prefix
-        0, // hi_prefix
-        0, // first_lo_ign
-      580, // lo_short
-     1274, // lo_long
-        0, // hi_short (0 => take lo_short)
-        0, // hi_long  (0 => take lo_long)
-      520, // lo_last
-     4956, // sep
-       32, // nb_bits
-    callback1,
-     2000
+        RFMOD_TRIBIT, // mod
+        4956,         // initseq
+        0,            // lo_prefix
+        0,            // hi_prefix
+        0,            // first_lo_ign
+        580,          // lo_short
+        1274,         // lo_long
+        0,            // hi_short (0 => take lo_short)
+        0,            // hi_long  (0 => take lo_long)
+        520,          // lo_last
+        4956,         // sep
+        32,           // nb_bits
+        callback1,
+        2000
     );
     rf.register_callback(callback2, 2000,
             new BitVector(32, 4, 0x8A, 0x34, 0xE6, 0xBF));
@@ -139,26 +139,24 @@ is equivalent to the below (only showing what changes):
 
 ```c++
 // ...
-
         // [OTIO (no rolling code, 32-bit)]
     rf.register_Receiver(
-    RFMOD_TRIBIT, // mod
-     4956, // initseq
-        0, // lo_prefix
-        0, // hi_prefix
-        0, // first_lo_ign
-      580, // lo_short
-     1274, // lo_long
-        0, // hi_short (0 => take lo_short)
-        0, // hi_long  (0 => take lo_long)
-      520, // lo_last
-     4956, // sep
-       32  // nb_bits
+        RFMOD_TRIBIT, // mod
+        4956,         // initseq
+        0,            // lo_prefix
+        0,            // hi_prefix
+        0,            // first_lo_ign
+        580,          // lo_short
+        1274,         // lo_long
+        0,            // hi_short (0 => take lo_short)
+        0,            // hi_long  (0 => take lo_long)
+        520,          // lo_last
+        4956,         // sep
+        32            // nb_bits
     );
     rf.register_callback(callback1, 2000);
     rf.register_callback(callback2, 2000,
             new BitVector(32, 4, 0x8A, 0x34, 0xE6, 0xBF));
-
 // ...
 ```
 
