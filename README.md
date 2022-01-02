@@ -163,3 +163,13 @@ is equivalent to the below (only showing what changes):
 The value 2000 is the minimum the delay in milliseconds between two calls, so
 here it makes 2000 milliseconds = 2 seconds.
 
+
+Link with RCSwitch library
+--------------------------
+
+RSwitch library is available in Arduino library manager. It is also available
+on github, here:
+[https://github.com/sui77/rc-switch/](https://github.com/sui77/rc-switch/)
+
+The example [examples/04_rcswitch_recv/04_rcswitch_recv.ino](examples/04_rcswitch_recv/04_rcswitch_recv.ino) shows how to decode RCSwitch protocols.
+
