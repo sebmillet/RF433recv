@@ -38,7 +38,7 @@
 #include <Arduino.h>
 
     // Will work only if DEBUG macro is also set
-//#define DEBUG_AUTOMAT
+#define DEBUG_AUTOMAT
 
 #define ASSERT_OUTPUT_TO_SERIAL
 
@@ -275,24 +275,24 @@ duration_t compact(uint16_t u) {
 
 // uncompact() is the opposite of compact(), yes!
 // Left here in case tests are needed (not used in target code).
-// FIXME
-//   Comment it for production code (not used normally in production)
-uint16_t uncompact(duration_t b) {
-#ifdef NO_COMPACT_DURATIONS
-        // compact not activated -> uncompact() is a no-op
-    return b;
-#else
-    uint16_t u = b;
-    if (u < 128) {
-        return u << 4;
-    }
-    u &= 0x7f;
-    if (u < 120) {
-        return (u << 7) + 2048;
-    }
-    return ((u - 120) << 12) + 17408;
-#endif
-}
+//
+// Uncomment for non-production code (not used normally in production)
+//uint16_t uncompact(duration_t b) {
+//#ifdef NO_COMPACT_DURATIONS
+//         compact not activated -> uncompact() is a no-op
+//    return b;
+//#else
+//    uint16_t u = b;
+//    if (u < 128) {
+//        return u << 4;
+//    }
+//    u &= 0x7f;
+//    if (u < 120) {
+//        return (u << 7) + 2048;
+//    }
+//    return ((u - 120) << 12) + 17408;
+//#endif
+//}
 
 
 // * ********** ***************************************************************
@@ -310,7 +310,7 @@ const autoline_t automat_tribit[] = {
     { W_TERMINATE,      ADX_UNDEF,         ADX_UNDEF,        1,  99 }, //  1
 
     { W_CHECK_DURATION, AD_INITSEQ_INF,    ADX_DMAX,
-                                 AD_INDIRECT | AD_NEXT_IF_TRUE,   0 }, //  2
+                                 AD_INDIRECT | AD_NEXT_PREFIX,    0 }, //  2
 
     { W_RESET_BITS,     ADX_UNDEF,         ADX_UNDEF,        4,  99 }, //  3
 
@@ -340,7 +340,7 @@ const autoline_t automat_tribit[] = {
 };
 #define TRIBIT_NB_ELEMS (ARRAYSZ(automat_tribit))
 
-// IMPORTANT - FIXME
+// IMPORTANT - FIXME (TODO actually)
 // ***NOT TESTED WITH A PREFIX***
 // IN REAL CONDITIONS, TESTED ONLY *WITHOUT* PREFIX
 const autoline_t automat_tribit_inverted[] = {
@@ -351,8 +351,8 @@ const autoline_t automat_tribit_inverted[] = {
 //    WHAT TO DO        MINVAL             MAXVAL           (T) (F)
     { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,          2,   0 }, //  0
     { W_TERMINATE,      ADX_UNDEF,         ADX_UNDEF,        1,  99 }, //  1
-    { W_CHECK_DURATION, AD_INITSEQ_INF,    ADX_DMAX,        
-                                 AD_INDIRECT | AD_NEXT_IF_TRUE,   0 }, //  2
+    { W_CHECK_DURATION, AD_INITSEQ_INF,    ADX_DMAX,
+                                  AD_INDIRECT | AD_NEXT_PREFIX,   0 }, //  2
 
     { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,         4,   0 }, //  3
     { W_CHECK_DURATION, AD_FIRST_LO_IGN_INF,
@@ -366,7 +366,8 @@ const autoline_t automat_tribit_inverted[] = {
     { W_CHECK_DURATION, AD_HI_LONG_INF,    AD_HI_LONG_SUP,  12,   2 }, //  8
 
     { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        10,   0 }, //  9
-    { W_CHECK_DURATION, AD_LO_LONG_INF,    AD_LO_LONG_SUP,  11,   0 }, // 10
+    { W_CHECK_DURATION, AD_LO_LONG_INF,    AD_LO_LONG_SUP,  11,
+                                      AD_INDIRECT | AD_NEXT_SPECIAL }, // 10
     { W_ADD_ZERO,       ADX_UNDEF,         ADX_UNDEF,       15,   0 }, // 11
 
     { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        13,   0 }, // 12
@@ -381,7 +382,9 @@ const autoline_t automat_tribit_inverted[] = {
     { W_WAIT_SIGNAL,    ADX_ZERO,          ADX_ZERO,        19,   0 }, // 18
     { W_CHECK_DURATION, AD_LO_PREFIX_INF,  AD_LO_PREFIX_SUP,20,   0 }, // 19
     { W_WAIT_SIGNAL,    ADX_ONE,           ADX_ONE,         21,   0 }, // 20
-    { W_CHECK_DURATION, AD_HI_PREFIX_INF,  AD_HI_PREFIX_SUP, 3,   2 }  // 21
+    { W_CHECK_DURATION, AD_HI_PREFIX_INF,  AD_HI_PREFIX_SUP, 3,   2 }, // 21
+
+    { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_SHORT_SUP,  14,  0 }  // 22
 };
 #define TRIBIT_INVERTED_NB_ELEMS (ARRAYSZ(automat_tribit_inverted))
 
@@ -464,13 +467,48 @@ const autoline_t automat_manchester[] = {
     //
     // For now the author prefers to keep it simple, and always go the laxist
     // way.  ;-D
-void get_boundaries(uint16_t lo_short, uint16_t lo_long, duration_t *pvalues,
+void get_boundaries(uint16_t sig_short, uint16_t sig_long, duration_t *pvalues,
         byte ad_idx_short_inf, byte ad_idx_short_sup,
         byte ad_idx_long_inf, byte ad_idx_long_sup) {
-    pvalues[ad_idx_short_inf] = compact(lo_short >> 2);
-    pvalues[ad_idx_short_sup] = compact((lo_short + lo_long) >> 1);
-    pvalues[ad_idx_long_inf] = pvalues[ad_idx_short_sup] + 1;
-    pvalues[ad_idx_long_sup] = compact(lo_long + (lo_long >> 1));
+
+    if (sig_short != sig_long) {
+
+        bool is_inverted = false;
+
+            // Normally the short is... shorter than the long, yes!
+            // But, some specs (in RCSwitch) work the other way round, and we
+            // have to handle it gracefully.
+        if (sig_short > sig_long) {
+            is_inverted = true;
+            uint16_t tmp = sig_short;
+            sig_short = sig_long;
+            sig_long = tmp;
+        }
+
+        pvalues[ad_idx_short_inf] = compact(sig_short >> 2);
+        pvalues[ad_idx_short_sup] = compact((sig_short + sig_long) >> 1);
+        pvalues[ad_idx_long_inf] = pvalues[ad_idx_short_sup] + 1;
+        pvalues[ad_idx_long_sup] = compact(sig_long + (sig_long >> 1));
+
+        if (is_inverted) {
+            duration_t tmp_vinf = pvalues[ad_idx_short_inf];
+            duration_t tmp_vsup = pvalues[ad_idx_short_sup];
+            pvalues[ad_idx_short_inf] = pvalues[ad_idx_long_inf];
+            pvalues[ad_idx_short_sup] = pvalues[ad_idx_long_sup];
+            pvalues[ad_idx_long_inf] = tmp_vinf;
+            pvalues[ad_idx_long_sup] = tmp_vsup;
+        }
+
+    } else {
+            // This one is a bit special.
+            // It is meant to handle cases like "RCSwitch protocol 8" where the
+            // hi signal has no 'short' and 'long' durations, only the lo one
+            // differs.
+        pvalues[ad_idx_short_inf] = compact(sig_short >> 1);
+        pvalues[ad_idx_short_sup] = compact(sig_short + (sig_short >> 1));
+        pvalues[ad_idx_long_inf] = pvalues[ad_idx_short_inf];
+        pvalues[ad_idx_long_sup] = pvalues[ad_idx_short_sup];
+    }
 }
 
 // TODO
@@ -552,6 +590,11 @@ autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
 
     pvalues[AD_NB_BITS] = nb_bits;
 
+        // Not as useless as it seems.
+        // Allows to invert decoding (see below).
+    pvalues[AD_BIT_0] = 0;
+    pvalues[AD_BIT_1] = 1;
+
 #ifdef DEBUG_AUTOMAT
     dbgf("c_lo_short_inf = %5u\n"
          "c_lo_short_sup = %5u\n"
@@ -578,7 +621,7 @@ autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
 
         pax->mat_len = TRIBIT_NB_ELEMS;
         pax->mat = automat_tribit;
-        pvalues[AD_NEXT_IF_TRUE] = lo_prefix ? 18  : 3;
+        pvalues[AD_NEXT_PREFIX] = lo_prefix ? 18  : 3;
 
         break;
 
@@ -587,7 +630,31 @@ autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         pax->mat_len = TRIBIT_INVERTED_NB_ELEMS;
         pax->mat = automat_tribit_inverted;
             // As written earlier, not tested with a prefix
-        pvalues[AD_NEXT_IF_TRUE] = lo_prefix ? 18  : 3;
+        pvalues[AD_NEXT_PREFIX] = lo_prefix ? 18  : 3;
+
+            // If hi_short == hi_long, then the signal has the below shape:
+            //
+            //   First duration (tirets) is high signal
+            //   Second duration (underscores) is low signal
+            //     --- __     => hi 'short', lo short
+            //     --- ____   => hi 'short', lo long
+            //
+            // 'short' is written in quotes, because it is neither short, nor
+            // long: there is a unique duration, but the automat happens to
+            // identify it as short.
+            //
+            // This means, at the time we 'identify' the hi signal duration, we
+            // identify it (wrongly) as short and then, expect a long duration
+            // thereafter, because regular tribit means encoding is made of ('hi
+            // short then lo long' versus 'hi long then lo short').
+            // However in this instance (hi_short == hi_long), we should instead
+            // check if the following lo signal is short or long, to deduct the
+            // bit coding.
+            //
+            // This is the purpose of the derivation below.
+            //
+            // FYI This coding corresponds to RCSwitch protocol 9.
+        pvalues[AD_NEXT_SPECIAL] = (hi_short == hi_long ? 22 : 0);
 
         break;
 
@@ -596,7 +663,7 @@ autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
         assert(!lo_prefix);
         pax->mat_len = MANCHESTER_NB_ELEMS;
         pax->mat = automat_manchester;
-        pvalues[AD_NEXT_IF_TRUE] = 255; // Not used
+        pvalues[AD_NEXT_PREFIX] = 255; // Not used
         break;
 
     default:
@@ -704,12 +771,12 @@ void Receiver::process_signal(duration_t compact_signal_duration,
             break;
 
         case W_ADD_ZERO:
-            recorded->add_bit(0);
+            recorded->add_bit(pax->values[AD_BIT_0]);
             r = true;
             break;
 
         case W_ADD_ONE:
-            recorded->add_bit(1);
+            recorded->add_bit(pax->values[AD_BIT_1]);
             r = true;
             break;
 
@@ -760,8 +827,10 @@ void Receiver::add_callback(callback_t *pcb) {
         callback_head = pcb;
 }
 
-void Receiver::execute_callbacks() {
+byte Receiver::execute_callbacks() {
     uint32_t t0 = millis();
+
+    byte ret = 0;
 
     callback_t *pcb = callback_head;
     while (pcb) {
@@ -773,12 +842,15 @@ void Receiver::execute_callbacks() {
             if (!pcb->pcode || !pcb->pcode->cmp(recorded)) {
                 pcb->last_trigger = t0;
                 pcb->func(recorded);
+                ++ret;
             }
         }
 
         pcb = pcb->next;
     }
     reset();
+
+    return ret;
 }
 
 
@@ -789,7 +861,8 @@ void Receiver::execute_callbacks() {
 RF_manager::RF_manager(byte arg_pin_input_num, byte arg_int_num):
         int_num(arg_int_num),
         opt_wait_free_433(false),
-        handle_int_receive_interrupts_is_set(false) {
+        handle_int_receive_interrupts_is_set(false),
+        first_decoder_that_has_a_value_resets_others(false) {
     pin_input_num = arg_pin_input_num;
     head = nullptr;
     ++obj_count;
@@ -892,6 +965,7 @@ void RF_manager::wait_value_available() {
 void RF_manager::do_events() {
     bool has_waited_free_433 = false;
 
+    byte exec_count = 0;
     Receiver* ptr_rec = head;
     while (ptr_rec) {
         if (ptr_rec->get_has_value()) {
@@ -903,17 +977,34 @@ void RF_manager::do_events() {
                 }
             }
 
-            ptr_rec->execute_callbacks();
+            exec_count += ptr_rec->execute_callbacks();
 
         }
-        ptr_rec = ptr_rec->get_next();
+        if (first_decoder_that_has_a_value_resets_others && exec_count) {
+            ptr_rec = nullptr;
+        } else {
+            ptr_rec = ptr_rec->get_next();
+        }
     }
 
-        // Why reset everything when wait_free_433 is executed?
-        // Because the timings are then completely messed up, and the ongoing
-        // recording already done by any open receiver must be restarted from
-        // scratch.
-    if (has_waited_free_433) {
+    if (first_decoder_that_has_a_value_resets_others && exec_count) {
+
+        cli();
+
+        Receiver* ptr_rec = head;
+        while (ptr_rec) {
+            ptr_rec->reset();
+            ptr_rec = ptr_rec->get_next();
+        }
+
+        sei();
+
+    } else if (has_waited_free_433) {
+
+            // Why reset everything when wait_free_433 is executed?
+            // Because the timings are then completely messed up, and the
+            // ongoing recording already done by any open receiver must be
+            // restarted from scratch.
 
             // IMPORTANT
             // We have to clear interrupts, because an interrupt could occur
@@ -1016,6 +1107,9 @@ volatile uint16_t RF_manager::IH_wait_free_last16;
 #define treg6
 #define treg7
 #define treg8
+#define treg9
+#define treg10
+#define treg11
 
 #ifdef SIMULATE_INTERRUPTS
 const uint16_t timings[] PROGMEM = {
@@ -1335,6 +1429,104 @@ const uint16_t timings[] PROGMEM = {
     432,   364,
     452,   332,
     444,  3988,
+#endif
+
+#ifdef treg9
+    0,   26144,     // reg9: 4d 2f (RCSwitch protocol 8)
+    628,  3180,
+    1416, 3188,
+    620,  3188,
+    616,  3188,
+    1408, 3192,
+    1420, 3188,
+    620,  3192,
+    1416, 3192,
+    608,  3200,
+    596,  3200,
+    1416, 3188,
+    628,  3180,
+    1416, 3188,
+    1416, 3196,
+    1408, 3204,
+    1416, 3200,
+    608, 26108,
+#endif
+
+#ifdef treg10
+    0,   26144,     // reg10: b2 d0 (RCSwitch protocol 8)
+    628,  3180,
+    1416, 3188,
+    620,  3188,
+    616,  3188,
+    1408, 3192,
+    1420, 3188,
+    620,  3192,
+    1416, 3192,
+    608,  3200,
+    596,  3200,
+    1416, 3188,
+    628,  3180,
+    1416, 3188,
+    1416, 3196,
+    1408, 3204,
+    1416, 3200,
+    608, 26108,
+#endif
+
+#ifdef treg11
+    0,     9652,    // reg11: 4d 2f (RCSwitch protocol 9)
+    1432,  3180,
+    1428,  3192,
+    616,   3180,
+    1420,  3180,
+    1424,  3188,
+    616,   3188,
+    608,   3188,
+    1416,  3188,
+    608,   3200,
+    1416,  3196,
+    1408,  3200,
+    608,   3188,
+    1424,  3188,
+    620,   3196,
+    608,   3200,
+    608,   3200,
+    612,   9632,
+
+    0,     9628,    // reg11: 4d 2f 7a e6 (RCSwitch protocol 9)
+    1424,  3188,
+    1424,  3188,
+    628,  3188,
+    1424,  3188,
+    1412,  3200,
+    632,  3184,
+    620,  3188,
+    1412,  3200,
+    620,  3188,
+    1424,  3188,
+    1424,  3196,
+    624,  3188,
+    1412,  3200,
+    608,  3200,
+    620,  3188,
+    628,  3188,
+    608,  3200,
+    1416,  3204,
+    612,  3200,
+    608,  3200,
+    616,  3188,
+    632,  3184,
+    1416,  3200,
+    608,  3200,
+    1424,  3188,
+    620,  3200,
+    608,  3200,
+    608,  3196,
+    1428,  3188,
+    1420,  3192,
+    624,  3188,
+    616,  3200,
+    1404,  9644,
 #endif
 
     0, 0

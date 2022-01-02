@@ -33,24 +33,6 @@
 
 #define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
 
-#define ASSERT_OUTPUT_TO_SERIAL
-
-#define assert(cond) { \
-    if (!(cond)) { \
-        recv_ino_assert_failed(__LINE__); \
-    } \
-}
-
-static void recv_ino_assert_failed(int line) {
-#ifdef ASSERT_OUTPUT_TO_SERIAL
-    Serial.print(F("\n01_recv.ino:"));
-    Serial.print(line);
-    Serial.println(F(": assertion failed, aborted."));
-#endif
-    while (1)
-        ;
-}
-
 extern const size_t timings_len;
 extern size_t timings_index;
 
@@ -90,6 +72,10 @@ BUILDFUNC_CALLBACK(5)
 BUILDFUNC_CALLBACK(6)
 BUILDFUNC_CALLBACK(7)
 BUILDFUNC_CALLBACK(8)
+BUILDFUNC_CALLBACK(9)
+BUILDFUNC_CALLBACK(10)
+BUILDFUNC_CALLBACK(11)
+BUILDFUNC_CALLBACK(12)
 
 RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
 
@@ -117,6 +103,9 @@ void setup() {
 #define reg6
 #define reg7
 #define reg8
+#define reg9
+#define reg10
+#define reg11
 
 #ifdef reg1
         // FIRST CODE, inspired from FLO
@@ -278,11 +267,88 @@ void setup() {
     );
 #endif
 
+#ifdef reg9
+        // NINETH ONE, comes from RCSwitch (protocol 8) -> the short duration is
+        // longer than the long duration.
+    rf.register_Receiver(
+        RFMOD_TRIBIT, // mod
+        26000,        // initseq
+        0,            // lo_prefix
+        0,            // hi_prefix
+        0,            // first_lo_ign
+        1400,         // lo_short
+        600,          // lo_long
+        3200,         // hi_short
+        3200,         // hi_long
+        600,          // lo_last
+        26000,        // sep
+        16,           // nb_bits
+        callback9,
+        0
+    );
+#endif
+
+#ifdef reg10
+        // TENTH ONE, comes from RCSwitch (protocol 8), inverted, meaning, the
+        // short duration is shorter then the long duration.
+    rf.register_Receiver(
+        RFMOD_TRIBIT, // mod
+        26000,        // initseq
+        0,            // lo_prefix
+        0,            // hi_prefix
+        0,            // first_lo_ign
+        600,          // lo_short
+        1400,         // lo_long
+        3200,         // hi_short
+        3200,         // hi_long
+        600,          // lo_last
+        26000,        // sep
+        16,           // nb_bits
+        callback10,
+        0
+    );
+#endif
+
+#ifdef reg11
+        // ELEVENTH ONE, comes from RCSwitch (protocol 9)
+    rf.register_Receiver(
+        RFMOD_TRIBIT_INVERTED, // mod
+        9600,                  // initseq
+        0,                     // lo_prefix
+        0,                     // hi_prefix
+        1400,                  // first_lo_ign
+        600,                   // lo_short
+        1400,                  // lo_long
+        3200,                  // hi_short
+        3200,                  // hi_long
+        0,                     // lo_last
+        9600,                  // sep
+        16,                    // nb_bits
+        callback11,
+        0
+    );
+
+        // 12TH ONE, comes from RCSwitch (protocol 9)
+    rf.register_Receiver(
+        RFMOD_TRIBIT_INVERTED, // mod
+        9600,                  // initseq
+        0,                     // lo_prefix
+        0,                     // hi_prefix
+        1400,                  // first_lo_ign
+        600,                   // lo_short
+        1400,                  // lo_long
+        3200,                  // hi_short
+        3200,                  // hi_long
+        0,                     // lo_last
+        9600,                  // sep
+        32,                    // nb_bits
+        callback12,
+        0
+    );
+#endif
+
     rf.set_opt_wait_free_433(false);
     rf.activate_interrupts_handler();
-
-    assert(true); // Written to avoid a warning "unused function"
-                  // FIXME (remove assert management code? Leaving it for now.)
 
     dbg_output_free_memory();
 }

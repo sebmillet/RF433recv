@@ -168,7 +168,10 @@ enum ad_field_idx {
     AD_LO_LAST_SUP,
     AD_SEP_INF,
     AD_NB_BITS,
-    AD_NEXT_IF_TRUE,
+    AD_NEXT_PREFIX,
+    AD_NEXT_SPECIAL,
+    AD_BIT_0,
+    AD_BIT_1,
     AD_NB_FIELDS,
         // The indexes named 'ADX_' (instead of 'AD_') are *not* used to
         // designate an element inside autoexec_t line:
@@ -251,7 +254,7 @@ class Receiver {
         void attach(Receiver* ptr_rec);
 
         void add_callback(callback_t *pcb);
-        void execute_callbacks();
+        byte execute_callbacks();
 };
 
 
@@ -281,6 +284,8 @@ class RF_manager {
 
         bool opt_wait_free_433;
         bool handle_int_receive_interrupts_is_set;
+
+        bool first_decoder_that_has_a_value_resets_others;
 
     public:
 
@@ -316,6 +321,10 @@ class RF_manager {
 
         void set_opt_wait_free_433(bool v) { opt_wait_free_433 = v; }
         void wait_free_433();
+
+        void set_first_decoder_that_has_a_value_resets_others(bool val) {
+            first_decoder_that_has_a_value_resets_others = val;
+        }
 };
 
 #endif // _RF433RECV_H

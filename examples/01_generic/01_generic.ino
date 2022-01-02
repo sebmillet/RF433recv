@@ -1,6 +1,6 @@
 // 01_generic.ino
 
-// Example sketch that comes along with RF433recv library
+// Example sketch that comes along with RF433recv library.
 // Implements what is needed to respond to a 2-button telecommand: implement
 // receiver and callback functions.
 // The receiver timings and receiver codes can be worked out using RF433any
