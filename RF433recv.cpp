@@ -37,9 +37,6 @@
 #include "RF433recv.h"
 #include <Arduino.h>
 
-    // Will work only if DEBUG macro is also set
-#define DEBUG_AUTOMAT
-
 #define ASSERT_OUTPUT_TO_SERIAL
 
 #define assert(cond) { \
@@ -63,6 +60,101 @@ static void rf433recv_assert_failed(unsigned int line) {
 #define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
 
 void handle_int_receive();
+
+
+// * **************** *********************************************************
+// * MeasureExecTimes *********************************************************
+// * **************** *********************************************************
+
+#ifdef DEBUG_EXEC_TIMES
+
+static char serial_printf_buffer[200];
+
+static void serial_printf(const char* fmt, ...)
+     __attribute__((format(printf, 1, 2)));
+
+static void serial_printf(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vsnprintf(serial_printf_buffer, sizeof(serial_printf_buffer), fmt, args);
+    va_end(args);
+
+    serial_printf_buffer[sizeof(serial_printf_buffer) - 1] = '\0';
+    Serial.print(serial_printf_buffer);
+}
+
+MeasureExecTimes::MeasureExecTimes(unsigned long int arg_reset_every):
+        dmin(0),
+        dmax(0),
+        dtotal(0),
+        count(0),
+        reset_every(arg_reset_every) { }
+
+MeasureExecTimes::MeasureExecTimes():MeasureExecTimes(0) { }
+
+MeasureExecTimes::~MeasureExecTimes() { }
+
+void MeasureExecTimes::reset() {
+    dmin = 0;
+    dmax = 0;
+    dtotal = 0;
+    count = 0;
+}
+
+void MeasureExecTimes::add(unsigned long int d) {
+    if (reset_every && count == reset_every)
+        reset();
+
+    if (!count) {
+        dmin = d;
+        dmax = d;
+    }
+
+    if (d < dmin)
+        dmin = d;
+    if (d > dmax)
+        dmax = d;
+
+    dtotal += d;
+    ++count;
+}
+
+void MeasureExecTimes::output_stats(const char *name) const {
+    assert(name);
+    unsigned long int davg = (count ? dtotal / count : 0);
+    serial_printf("[%-4s] %7lu %7lu %7lu %7lu %7lu\n",
+            name, dmin, davg, dmax, dtotal, count);
+}
+
+    // Why reset after 29 and 47 interrupts?
+    // I am interested in the statistics of "coding" durations, that is, those
+    // durations that are seen just before the Receiver says "I got data".
+    // Managing a rolling buffer would be big and complex, I prefer to manage
+    // like below: in average, half of the time r53 will have a count >= 27, and
+    // half of the time r59 will have a count >= 30.
+    // That means 75% of the time, we'll have a count number equal to, or above,
+    // 27 (said differently: 75% of the time, the stats will be relevant).
+    // I chose 53 and 59 (they are prime with one another) so that resetting of
+    // their values is independant as much as possible.
+MeasureExecTimes measure_time_main;
+MeasureExecTimes measure_time_r53(53);
+MeasureExecTimes measure_time_r59(59);
+
+void output_measureexectimes_stats() {
+    serial_printf("[%-4s] %7s %7s %7s %7s %7s\n",
+            "CAT", "min", "avg", "max", "total", "count");
+    measure_time_main.output_stats("MAIN");
+    measure_time_r53.output_stats("R_53");
+    measure_time_r59.output_stats("R_59");
+    serial_printf("\n");
+
+    measure_time_main.reset();
+    measure_time_r53.reset();
+    measure_time_r59.reset();
+}
+
+#endif
+
 
 // * ********* ****************************************************************
 // * BitVector ****************************************************************
@@ -862,7 +954,8 @@ RF_manager::RF_manager(byte arg_pin_input_num, byte arg_int_num):
         int_num(arg_int_num),
         opt_wait_free_433(false),
         handle_int_receive_interrupts_is_set(false),
-        first_decoder_that_has_a_value_resets_others(false) {
+        first_decoder_that_has_a_value_resets_others(false),
+        inactivate_interrupts_handler_when_a_value_has_been_received(false) {
     pin_input_num = arg_pin_input_num;
     head = nullptr;
     ++obj_count;
@@ -965,10 +1058,21 @@ void RF_manager::wait_value_available() {
 void RF_manager::do_events() {
     bool has_waited_free_433 = false;
 
+    bool deja_vu = false;
+    bool reactivate_interrupts_handler_in_the_end = false;
+
     byte exec_count = 0;
     Receiver* ptr_rec = head;
     while (ptr_rec) {
         if (ptr_rec->get_has_value()) {
+
+            if (inactivate_interrupts_handler_when_a_value_has_been_received
+                    && !deja_vu) {
+                deja_vu = true;
+                reactivate_interrupts_handler_in_the_end =
+                    handle_int_receive_interrupts_is_set;
+                inactivate_interrupts_handler();
+            }
 
             if (opt_wait_free_433) {
                 if (!has_waited_free_433) {
@@ -1022,6 +1126,10 @@ void RF_manager::do_events() {
 
         sei();
 
+    }
+
+    if (reactivate_interrupts_handler_in_the_end) {
+        activate_interrupts_handler();
     }
 }
 
@@ -1590,6 +1698,13 @@ void handle_int_receive() {
         ptr_rec->process_signal(compact_signal_duration, signal_val);
         ptr_rec = ptr_rec->get_next();
     }
+
+#ifdef DEBUG_EXEC_TIMES
+    const unsigned long d = micros() - t;
+    measure_time_main.add(d);
+    measure_time_r53.add(d);
+    measure_time_r59.add(d);
+#endif
 
     handle_int_busy = false;
 }

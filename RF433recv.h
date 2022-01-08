@@ -42,7 +42,7 @@
 // It is OK to update the below, because if this code is compiled, then we are
 // not in the test plan.
 
-//#define DEBUG
+#define DEBUG
 //#define SIMULATE_INTERRUPTS
 
 #endif // RF433ANY_TESTPLAN
@@ -55,6 +55,13 @@
 #pragma message ("NO_COMPACT_DURATIONS MACRO DEFINED!")
 #warning "NO_COMPACT_DURATIONS MACRO DEFINED!"
 #endif
+
+//#define DEBUG_AUTOMAT
+#if defined(DEBUG_AUTOMAT) && !defined(DEBUG)
+#error "DEBUG_AUTOMAT macro set without DEBUG"
+#endif
+
+#define DEBUG_EXEC_TIMES
 
 #ifdef DEBUG
 
@@ -69,6 +76,36 @@
 #endif
 
 #include <Arduino.h>
+
+
+// * **************** *********************************************************
+// * MeasureExecTimes *********************************************************
+// * **************** *********************************************************
+
+#ifdef DEBUG_EXEC_TIMES
+
+class MeasureExecTimes {
+    private:
+        unsigned long int dmin;
+        unsigned long int dmax;
+        unsigned long int dtotal;
+        unsigned long int count;
+        unsigned long int reset_every;
+
+    public:
+        MeasureExecTimes(unsigned long int arg_reset_every);
+        MeasureExecTimes();
+        ~MeasureExecTimes();
+
+        void add(unsigned long int d);
+        void output_stats(const char *name) const;
+
+        void reset();
+};
+
+void output_measureexectimes_stats();
+
+#endif
 
 
 // * ********* ****************************************************************
@@ -286,6 +323,7 @@ class RF_manager {
         bool handle_int_receive_interrupts_is_set;
 
         bool first_decoder_that_has_a_value_resets_others;
+        bool inactivate_interrupts_handler_when_a_value_has_been_received;
 
     public:
 
@@ -294,6 +332,9 @@ class RF_manager {
         static Receiver* get_tail();
 
         static void ih_handle_interrupt_wait_free();
+
+        void activate_interrupts_handler();
+        void inactivate_interrupts_handler();
 
         RF_manager(byte arg_pin_input_num, byte arg_int_num);
         ~RF_manager();
@@ -308,9 +349,6 @@ class RF_manager {
         bool get_has_value() const;
         Receiver* get_receiver_that_has_a_value() const;
 
-        void activate_interrupts_handler();
-        void inactivate_interrupts_handler();
-
         void wait_value_available();
 
         void register_callback(void (*func) (const BitVector *recorded),
@@ -324,6 +362,10 @@ class RF_manager {
 
         void set_first_decoder_that_has_a_value_resets_others(bool val) {
             first_decoder_that_has_a_value_resets_others = val;
+        }
+        void set_inactivate_interrupts_handler_when_a_value_has_been_received(
+                bool val) {
+            inactivate_interrupts_handler_when_a_value_has_been_received = val;
         }
 };
 

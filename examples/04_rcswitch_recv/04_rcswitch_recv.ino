@@ -32,8 +32,6 @@
 #define INT_RFINPUT  0
 
 void callback_core(const BitVector *recorded, byte rcswitch_protocol) {
-    static long unsigned int last_t = 0;
-
     Serial.print(F("Code received: "));
     if (recorded->get_nb_bytes() != 4) {
         char *printed_code = recorded->to_str();
@@ -59,6 +57,11 @@ void callback_core(const BitVector *recorded, byte rcswitch_protocol) {
         Serial.print(rcswitch_protocol);
         Serial.print(F("\n"));
     }
+
+#ifdef DEBUG_EXEC_TIMES
+    output_measureexectimes_stats();
+#endif
+
 }
 
 #define BUILD_CALLBACK_FOR_RCSWITCH_PROTOCOL_N(n) \
@@ -113,6 +116,7 @@ void setup() {
     Serial.print(F("Waiting for signal\n"));
 
     rf.set_first_decoder_that_has_a_value_resets_others(true);
+    rf.set_inactivate_interrupts_handler_when_a_value_has_been_received(true);
     rf.activate_interrupts_handler();
 }
 
