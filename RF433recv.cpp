@@ -126,7 +126,7 @@ void MeasureExecTimes::output_stats(const char *name) const {
             name, dmin, davg, dmax, dtotal, count);
 }
 
-    // Why reset after 29 and 47 interrupts?
+    // Why reset after 53 and 59 interrupts?
     // I am interested in the statistics of "coding" durations, that is, those
     // durations that are seen just before the Receiver says "I got data".
     // Managing a rolling buffer would be big and complex, I prefer to manage
