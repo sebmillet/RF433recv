@@ -191,18 +191,23 @@ since the decoding takes place in the interrupt handler, if too many decoders
 are registered, at some point the signals with short typical durations won't
 work.
 
-Just as an example:
+This is because RF433recv decodes on the fly, *inside* the interrupt handler.
 
-- Inside
-[examples/04_rcswitch_recv/04_rcswitch_recv.ino](examples/04_rcswitch_recv/04_rcswitch_recv.ino),
-if calling register_Receiver for each of the 12 RCSwitch protocols, then
-all protocols work fine except: 1, 7, 11 and 12.
+The library as of version 0.1.5, contains a small buffer (4 bytes) to help
+analyze the signal on the fly. This gives flexibility when decoding signals and
+allows to register more decoders. Until version 0.1.4, not all RCSwitch
+protocols could be decoded at the same time (you could have up to 8).
 
-- Inside
+Now you can simply register all RCSwitch protocols and it'll work fine, so all
+in all, RF433recv allows to register 12 decoders in parallel and have all of
+them work successfully. Even RCSwitch protocl 7! (that has a short signal
+duration of 150 microseconds = very low).
+
+Ultimately the author warns against registering too many decoders at the same
+time, but can claim the 12 RCSwitch protocols work happily when all of them are
+registered in parallel.
+
+See
 [examples/04_rcswitch_recv/04_rcswitch_recv.ino](examples/04_rcswitch_recv/04_rcswitch_recv.ino)
-still, if registering only the protocols 1, 2, 3, 4, 5, 6, 8, 9, 10, then
-each of these protocols works fine.
-
-- The most difficult RCSwitch protocol in this regard is 7: it'll work along
-with 2 other decoders, but not 3.
+to see how the 12 registrations are done.
 

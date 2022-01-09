@@ -68,6 +68,9 @@ void handle_int_receive();
 
 #ifdef DEBUG_EXEC_TIMES
 
+// In this code area, we are debugging anyway -> we can use variables (like the
+// buffer below) of big size, without optimizing anything.
+
 static char serial_printf_buffer[200];
 
 static void serial_printf(const char* fmt, ...)
@@ -370,9 +373,7 @@ duration_t compact(uint16_t u) {
 }
 
 // uncompact() is the opposite of compact(), yes!
-// Left here in case tests are needed (not used in target code).
-//
-// Uncomment for non-production code (not used normally in production)
+// Left here in case tests are needed (it is not used in release code).
 //uint16_t uncompact(duration_t b) {
 //#ifdef NO_COMPACT_DURATIONS
 //         compact not activated -> uncompact() is a no-op
@@ -395,7 +396,8 @@ duration_t compact(uint16_t u) {
 // * autoline_t ***************************************************************
 // * ********** ***************************************************************
 
-    // The below one corresponds to RFMOD_TRIBIT
+// The below one corresponds to RFMOD_TRIBIT
+
 const autoline_t automat_tribit[] PROGMEM = {
 
 // Below, (T) means 'next status if test returns true'
@@ -435,6 +437,8 @@ const autoline_t automat_tribit[] PROGMEM = {
     { W_CHECK_DURATION, AD_HI_PREFIX_INF, AD_HI_PREFIX_SUP,  3,   2 }  // 21
 };
 #define TRIBIT_NB_ELEMS (ARRAYSZ(automat_tribit))
+
+// The below one corresponds to RFMOD_TRIBIT_INVERTED
 
 // IMPORTANT - FIXME (TODO actually)
 // ***NOT TESTED WITH A PREFIX***
@@ -483,6 +487,8 @@ const autoline_t automat_tribit_inverted[] PROGMEM = {
     { W_CHECK_DURATION, AD_LO_SHORT_INF,   AD_LO_SHORT_SUP,  14,  0 }  // 22
 };
 #define TRIBIT_INVERTED_NB_ELEMS (ARRAYSZ(automat_tribit_inverted))
+
+// The below one corresponds to RFMOD_MANCHESTER
 
 const autoline_t automat_manchester[] PROGMEM = {
 
@@ -546,15 +552,15 @@ const autoline_t automat_manchester[] PROGMEM = {
 
 //#define OUTPUT_SIZEOF_AUTOMATS_AT_COMPILE_TIME
 #ifdef OUTPUT_SIZEOF_AUTOMATS_AT_COMPILE_TIME
-    // Trick to output the sizeof of a structure by the compiler (as an error)
+    // Trick to output the sizeof of a structure by the compiler (AS AN ERROR)
     // found here:
     //   https://stackoverflow.com/questions/2008398/
     //     is-it-possible-to-print-out-the-size-of-a-c-class-at-compile-time
 template<int s> struct Wow;
-Wow<
-    sizeof(automat_tribit)
+Wow<sizeof(automat_tribit)
     +sizeof(automat_tribit_inverted)
-    +sizeof(automat_manchester)> wow;
+    +sizeof(automat_manchester)>
+    wow;
 #endif
 
     // TODO (?)
@@ -562,7 +568,7 @@ Wow<
     // identified as "short versus long" as follows:
     //   short <=> duration in [short / 4, avg(short, long)]
     //   long  <=> duration in [avg(short, long) + 1, long * 1.5]
-    // (The use of compact numbers will also modify these bounadires a bit, but
+    // (The use of compact numbers will also modify these boundaries a bit, but
     // this is another story.)
     //
     // This is a bit laxist. Stricter ranges could be:
@@ -679,7 +685,7 @@ autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
             // Not necessary (unused if lo_prefix is zero)... but cleaner.
             // I put a value anyway, it is cleaner because in case the values
             // are tested (this without a doubt would be a bug), the bad
-            // consequences will be repeatable.
+            // consequences will be repeatable, whatever it'll be.
             // Why choosing 32000?
             //   Why not?
         pvalues[AD_LO_PREFIX_INF] = compact(32000);
@@ -699,8 +705,13 @@ autoexec_t* build_automat(byte mod, uint16_t initseq, uint16_t lo_prefix,
 
     pvalues[AD_NB_BITS] = nb_bits;
 
-        // Not as useless as it seems.
-        // Allows to invert decoding (see below).
+        // Will allow one day, to invert decoding.
+        // For now, these two pvalues are clearly useless, as RF433recv API does
+        // not provide a way to invert decoding.
+        // Well, to be more precise, it does not provide a DIRECT way of
+        // inverting decoding.
+        // But, you can exchange short and long durations (in register_Receiver
+        // call), this'll flip 0 and 1 decoded bits.
     pvalues[AD_BIT_0] = 0;
     pvalues[AD_BIT_1] = 1;
 
@@ -1666,8 +1677,17 @@ size_t timings_index = 0;
 bool has_read_all_timings() { return timings_index >= timings_len; }
 #endif
 
-bool handle_int_overrun = false;
-bool handle_int_busy = false;
+static bool handle_int_busy = false;
+
+struct sbuf_entry_t {
+    byte signal_val;
+    duration_t compact_signal_duration;
+};
+static sbuf_entry_t sbuf[BUFFER_SIGNALS_NB];
+    // Keep in mind, we can't manage more than 128 values in the buffer (biggest
+    // power of 2 that fits in a byte).
+static byte sbuf_read_head = 0;
+static byte sbuf_write_head = 0;
 
 void handle_int_receive() {
     static unsigned long last_t = 0;
@@ -1689,36 +1709,53 @@ void handle_int_receive() {
 #endif
 #endif
 
-    if (handle_int_busy) {
-        handle_int_overrun = true;
-        return;
-    }
-
-    if (handle_int_overrun) {
-        signal_duration = 0;
-        handle_int_overrun = false;
-    }
+    bool was_handle_int_busy = handle_int_busy;
     handle_int_busy = true;
-    sei();
 
 #ifdef SIMULATE_INTERRUPTS
-            byte signal_val = !(timings_index % 2);
+    byte signal_val = !(timings_index % 2);
 #else
-            byte signal_val =
-                (digitalRead(RF_manager::get_pin_input_num()) == HIGH ? 1 : 0);
+    byte signal_val =
+        (digitalRead(RF_manager::get_pin_input_num()) == HIGH ? 1 : 0);
 #endif
 
     duration_t compact_signal_duration = compact(signal_duration);
-    Receiver *ptr_rec = RF_manager::get_head();
 
-    while (ptr_rec) {
+    byte next_sbuf_write_head = (sbuf_write_head + 1) & BUFFER_SIGNALS_MASK;
+    if (next_sbuf_write_head == sbuf_read_head) {
+            // There is a decision to take here: would we run out of space in
+            // the buffer, we can either stop writing new signals, or, skip a
+            // previously recorded signal.
+            // For now, we decide to skip previously recorded signals.
+        sbuf_read_head = (sbuf_read_head + 1) & BUFFER_SIGNALS_MASK;
+    }
+    sbuf[sbuf_write_head].signal_val = signal_val;
+    sbuf[sbuf_write_head].compact_signal_duration = compact_signal_duration;
+    sbuf_write_head = next_sbuf_write_head;
+
+    if (!was_handle_int_busy) {
+        while (sbuf_read_head != sbuf_write_head) {
+            signal_val = sbuf[sbuf_read_head].signal_val;
+            compact_signal_duration =
+                sbuf[sbuf_read_head].compact_signal_duration;
+
+            sei();
+
+            Receiver *ptr_rec = RF_manager::get_head();
+            while (ptr_rec) {
 
 #ifdef DEBUG_AUTOMAT
-        dbgf("\nptr_rec = %lu", (unsigned long)ptr_rec);
+                dbgf("\nptr_rec = %lu", (unsigned long)ptr_rec);
 #endif
 
-        ptr_rec->process_signal(compact_signal_duration, signal_val);
-        ptr_rec = ptr_rec->get_next();
+                ptr_rec->process_signal(compact_signal_duration, signal_val);
+                ptr_rec = ptr_rec->get_next();
+            }
+
+            cli();
+            sbuf_read_head = (sbuf_read_head + 1) & BUFFER_SIGNALS_MASK;
+        }
+        sei();
     }
 
 #ifdef DEBUG_EXEC_TIMES
@@ -1728,7 +1765,7 @@ void handle_int_receive() {
     measure_time_r59.add(d);
 #endif
 
-    handle_int_busy = false;
+    handle_int_busy = was_handle_int_busy;
 }
 
 // vim: ts=4:sw=4:tw=80:et

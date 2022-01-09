@@ -104,18 +104,18 @@ void setup() {
             7000, 32, callback5, 1000);
     rf.register_Receiver(RFMOD_TRIBIT_INVERTED, 10350, 0, 0, 450, 450, 900, 0,
             0, 0, 10350, 32, callback6, 1000);
-//    rf.register_Receiver(RFMOD_TRIBIT, 9300, 0, 0, 0, 150, 900, 0, 0, 150, 9300,
-//            32, callback7, 1000);
+    rf.register_Receiver(RFMOD_TRIBIT, 9300, 0, 0, 0, 150, 900, 0, 0, 150, 9300,
+            32, callback7, 1000);
     rf.register_Receiver(RFMOD_TRIBIT, 26000, 0, 0, 0, 1400, 600, 3200, 3200,
             600, 26000, 32, callback8, 1000);
     rf.register_Receiver(RFMOD_TRIBIT_INVERTED, 26000, 0, 0, 1400, 1400, 600,
             3200, 3200, 0, 26000, 32, callback9, 1000);
     rf.register_Receiver(RFMOD_TRIBIT_INVERTED, 6570, 0, 0, 365, 1095, 365, 0,
             0, 0, 6570, 32, callback10, 1000);
-//    rf.register_Receiver(RFMOD_TRIBIT_INVERTED, 9720, 0, 0, 270, 270, 540, 0, 0,
-//            0, 9720, 32, callback11, 1000);
-//    rf.register_Receiver(RFMOD_TRIBIT_INVERTED, 11520, 0, 0, 320, 320, 640, 0,
-//            0, 0, 11520, 32, callback12, 1000);
+    rf.register_Receiver(RFMOD_TRIBIT_INVERTED, 9720, 0, 0, 270, 270, 540, 0, 0,
+            0, 9720, 32, callback11, 1000);
+    rf.register_Receiver(RFMOD_TRIBIT_INVERTED, 11520, 0, 0, 320, 320, 640, 0,
+            0, 0, 11520, 32, callback12, 1000);
 
     Serial.print(F("Waiting for signal\n"));
 

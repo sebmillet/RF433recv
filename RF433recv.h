@@ -63,6 +63,23 @@
 
 //#define DEBUG_EXEC_TIMES
 
+    // *IMPORTANT*
+    //   MUST BE A POWER OF 2
+    //     Because we need to calculate "modulo BUFFER_SIGNALS_NB", and as we
+    //     don't want a long calculation to take place (yes we are in a
+    //     microcontroller, plus, we are INSIDE an interrupt call...), we simply
+    //     use "& BUFFER_SIGNALS_MASK" instruction.
+    //   ALSO MAX VALUE IS 128 (BECAUSE THE VARIABLES TO WALK THROUGH THE BUFFER
+    //   ARE OF TYPE byte)
+    //   Note that we use a read_head and write_head, and both being equal
+    //   means, there is no value to read. As a result, the real buffer size is
+    //   not BUFFER_SIGNALS_NB but (BUFFER_SIGNALS_NB - 1).
+    //   So with a 'raw' buffer size of 4, we have a real buffer of 3 durations
+    //   waiting for us to process. This is sufficient for our need.
+#define BUFFER_SIGNALS_NB 4 // DON'T CHANGE IT UNLESS YOU KNOW WHAT YOU ARE
+                            // DOING!!!
+#define BUFFER_SIGNALS_MASK (BUFFER_SIGNALS_NB - 1)
+
 #ifdef DEBUG
 
 #include "RF433Debug.h"
