@@ -173,3 +173,10 @@ on github, here:
 
 The example [examples/04_rcswitch_recv/04_rcswitch_recv.ino](examples/04_rcswitch_recv/04_rcswitch_recv.ino) shows how to decode RCSwitch protocols.
 
+
+About decoding automats being stores in PROGMEM
+-----------------------------------------------
+
+This has a performance impact that was measure, see file
+[README-PROGMEM.md](README-PROGMEM.md).
+

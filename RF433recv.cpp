@@ -135,10 +135,13 @@ void MeasureExecTimes::output_stats(const char *name) const {
     // That means 75% of the time, we'll have a count number equal to, or above,
     // 27 (said differently: 75% of the time, the stats will be relevant).
     // I chose 53 and 59 (they are prime with one another) so that resetting of
-    // their values is independant as much as possible.
+    // their values is independant as much as possible (so I can say
+    // "count >= 27" is 75% probable).
 MeasureExecTimes measure_time_main;
 MeasureExecTimes measure_time_r53(53);
 MeasureExecTimes measure_time_r59(59);
+
+unsigned int get_size_of_automats();
 
 void output_measureexectimes_stats() {
     serial_printf("[%-4s] %7s %7s %7s %7s %7s\n",
@@ -146,6 +149,7 @@ void output_measureexectimes_stats() {
     measure_time_main.output_stats("MAIN");
     measure_time_r53.output_stats("R_53");
     measure_time_r59.output_stats("R_59");
+
     serial_printf("\n");
 
     measure_time_main.reset();
@@ -392,7 +396,7 @@ duration_t compact(uint16_t u) {
 // * ********** ***************************************************************
 
     // The below one corresponds to RFMOD_TRIBIT
-const autoline_t automat_tribit[] = {
+const autoline_t automat_tribit[] PROGMEM = {
 
 // Below, (T) means 'next status if test returns true'
 //        (F) means 'next status if test returns false'
@@ -435,7 +439,7 @@ const autoline_t automat_tribit[] = {
 // IMPORTANT - FIXME (TODO actually)
 // ***NOT TESTED WITH A PREFIX***
 // IN REAL CONDITIONS, TESTED ONLY *WITHOUT* PREFIX
-const autoline_t automat_tribit_inverted[] = {
+const autoline_t automat_tribit_inverted[] PROGMEM = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
@@ -480,7 +484,7 @@ const autoline_t automat_tribit_inverted[] = {
 };
 #define TRIBIT_INVERTED_NB_ELEMS (ARRAYSZ(automat_tribit_inverted))
 
-const autoline_t automat_manchester[] = {
+const autoline_t automat_manchester[] PROGMEM = {
 
 // Below, (T) means 'next status if test returns true' and
 //        (F) means 'next status if test returns false'.
@@ -539,6 +543,19 @@ const autoline_t automat_manchester[] = {
 
 };
 #define MANCHESTER_NB_ELEMS (ARRAYSZ(automat_manchester))
+
+//#define OUTPUT_SIZEOF_AUTOMATS_AT_COMPILE_TIME
+#ifdef OUTPUT_SIZEOF_AUTOMATS_AT_COMPILE_TIME
+    // Trick to output the sizeof of a structure by the compiler (as an error)
+    // found here:
+    //   https://stackoverflow.com/questions/2008398/
+    //     is-it-possible-to-print-out-the-size-of-a-c-class-at-compile-time
+template<int s> struct Wow;
+Wow<
+    sizeof(automat_tribit)
+    +sizeof(automat_tribit_inverted)
+    +sizeof(automat_manchester)> wow;
+#endif
 
     // TODO (?)
     // The boundaries are calculated so that a given signal length will be
@@ -835,12 +852,13 @@ inline duration_t Receiver::get_val(byte idx) const {
 void Receiver::process_signal(duration_t compact_signal_duration,
         byte signal_val) {
     const autoline_t *mat = pax->mat;
+    byte new_w;
     do {
         const autoline_t *current = &mat[status];
-        const byte w = current->w;
+        const byte w = pgm_read_byte(&current->w);
 
-        duration_t minv = get_val(current->ad_field_idx_minval);
-        duration_t maxv = get_val(current->ad_field_idx_maxval);
+        duration_t minv = get_val(pgm_read_byte(&current->ad_field_idx_minval));
+        duration_t maxv = get_val(pgm_read_byte(&current->ad_field_idx_maxval));
 
         bool r;
         switch (w) {
@@ -880,8 +898,11 @@ void Receiver::process_signal(duration_t compact_signal_duration,
             assert(false);
         }
 
-        byte next_status =
-            (r ? current->next_if_w_true : current->next_if_w_false);
+        byte next_status = (r ?
+            pgm_read_byte(&current->next_if_w_true)
+                :
+            pgm_read_byte(&current->next_if_w_false)
+        );
         if (next_status & AD_INDIRECT)
             next_status = pax->values[next_status & ~AD_INDIRECT];
 
@@ -894,7 +915,8 @@ void Receiver::process_signal(duration_t compact_signal_duration,
 #endif
 
         status = next_status;
-    } while (mat[status].w != W_TERMINATE && mat[status].w != W_WAIT_SIGNAL);
+        new_w = pgm_read_byte(&mat[status].w);
+    } while (new_w != W_TERMINATE && new_w != W_WAIT_SIGNAL);
 }
 
 void Receiver::attach(Receiver* ptr_rec) {

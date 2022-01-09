@@ -1,0 +1,106 @@
+speed=115200
+fqbn=arduino:avr:nano:cpu=atmega328old
+port=/dev/ttyUSB0
+file=04_rcswitch_recv.ino
+filedate=2022-01-08T17:21:55Z
+date=2022-01-08T17:22:23Z
+
+-----BEGIN ARDUINO OUTPUT-----
+Waiting for signal
+Code received: 32 bits: 3000020002, RCSwitch protocol: 5
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     195     436 1371064    7022
+[R_53]     156     244     332    6368      26
+[R_59]     176     176     176     176       1
+
+Code received: 32 bits: 3000020002, RCSwitch protocol: 2
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     235     360   27504     117
+[R_53]     168     249     360    2744      11
+[R_59]     164     266     360   15484      58
+
+Code received: 32 bits: 3000030003, RCSwitch protocol: 3
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     205     364  318812    1551
+[R_53]     160     245     332    3436      14
+[R_59]     160     241     332    4108      17
+
+Code received: 32 bits: 3000030003, RCSwitch protocol: 4
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     226     352   25560     113
+[R_53]     160     232     332    1628       7
+[R_59]     156     248     332   13432      54
+
+Code received: 32 bits: 3000030003, RCSwitch protocol: 5
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     226     344   25568     113
+[R_53]     160     230     332    1616       7
+[R_59]     156     248     332   13436      54
+
+Code received: 32 bits: 3000040004, RCSwitch protocol: 4
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     197     360  343356    1737
+[R_53]     132     205     276    8436      41
+[R_59]     132     206     276    5372      26
+
+Code received: 32 bits: 3000050005, RCSwitch protocol: 3
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     198     392  317344    1599
+[R_53]     160     246     356    2220       9
+[R_59]     160     249     356    1496       6
+
+Code received: 32 bits: 3000050005, RCSwitch protocol: 5
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     236     368   26492     112
+[R_53]     156     248     356    1492       6
+[R_59]     156     264     356   14000      53
+
+Code received: 32 bits: 3000050005, RCSwitch protocol: 2
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     236     364   26512     112
+[R_53]     164     252     356    1512       6
+[R_59]     164     264     356   14020      53
+
+Code received: 32 bits: 3000050005, RCSwitch protocol: 4
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     236     364   26496     112
+[R_53]     156     248     360    1492       6
+[R_59]     156     264     360   13996      53
+
+Code received: 32 bits: 1294907289, RCSwitch protocol: 10
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     201     408  266660    1323
+[R_53]     192     249     304   12728      51
+[R_59]     192     249     304    6232      25
+
+Code received: 32 bits: 3000060006, RCSwitch protocol: 12
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     230     412   25540     111
+[R_53]     192     247     300    1236       5
+[R_59]     192     250     300   13028      52
+
+Code received: 32 bits: 3000060006, RCSwitch protocol: 6
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     229     408   25460     111
+[R_53]     192     246     304    1232       5
+[R_59]     192     249     304   12976      52
+
+Code received: 32 bits: 3000080008, RCSwitch protocol: 8
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     202     416  659380    3249
+[R_53]     148     230     308    3692      16
+[R_59]     148     248     308     992       4
+
+Code received: 32 bits: 3000090009, RCSwitch protocol: 9
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     197     372  325792    1648
+[R_53]     200     261     324    1308       5
+[R_59]     196     247     324   13588      55
+
+Code received: 32 bits: 3000100010, RCSwitch protocol: 10
+[CAT ]     min     avg     max   total   count
+[MAIN]     132     199     340  287764    1443
+[R_53]     164     210     280    2524      12
+[R_59]     164     208     280    5624      27
+
+-----END ARDUINO OUTPUT-----

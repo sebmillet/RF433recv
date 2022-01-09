@@ -61,7 +61,7 @@
 #error "DEBUG_AUTOMAT macro set without DEBUG"
 #endif
 
-#define DEBUG_EXEC_TIMES
+//#define DEBUG_EXEC_TIMES
 
 #ifdef DEBUG
 
