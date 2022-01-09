@@ -176,7 +176,7 @@ The example
 shows how to decode RCSwitch protocols.
 
 
-About decoding automats being stores in PROGMEM
+About decoding automats being stored in PROGMEM
 -----------------------------------------------
 
 This has a performance impact that was measured, see file
