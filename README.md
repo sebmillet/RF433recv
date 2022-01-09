@@ -179,7 +179,7 @@ shows how to decode RCSwitch protocols.
 About decoding automats being stores in PROGMEM
 -----------------------------------------------
 
-This has a performance impact that was measure, see file
+This has a performance impact that was measured, see file
 [README-PROGMEM.md](README-PROGMEM.md).
 
 
