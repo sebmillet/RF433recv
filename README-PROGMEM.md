@@ -56,13 +56,17 @@ not too scattered.
 - Execution times WITHOUT PROGMEM
 
     > Average of minimum execution times: 178 (std dev: 28)
+
     > Average of average execution times: 250 (std dev: 21)
+
     > Average of maximum execution times: 328 (std dev: 31)
 
 - Execution times WITH PROGMEM
 
     > Average of minimum execution times: 166 (std dev: 18)
+
     > Average of average execution times: 241 (std dev: 20)
+
     > Average of maximum execution times: 321 (std dev: 38)
 
 3. Difference
