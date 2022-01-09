@@ -570,7 +570,7 @@ Wow<
     //   long  <=> duration in [long * 0.75, long * 1.25]
     //
     // As the author prefers the laxist way, providing stricter decoding would
-    // require an additional argument in build_automat(), like for example...
+    // require an additional argument when building automat, like for example...
     //   enum class DecodeMood {LAXIST, STRICT};
     // ...to change the calculation of boundaries accordingly.
     //

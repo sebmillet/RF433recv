@@ -171,7 +171,9 @@ RSwitch library is available in Arduino library manager. It is also available
 on github, here:
 [https://github.com/sui77/rc-switch/](https://github.com/sui77/rc-switch/)
 
-The example [examples/04_rcswitch_recv/04_rcswitch_recv.ino](examples/04_rcswitch_recv/04_rcswitch_recv.ino) shows how to decode RCSwitch protocols.
+The example
+[examples/04_rcswitch_recv/04_rcswitch_recv.ino](examples/04_rcswitch_recv/04_rcswitch_recv.ino)
+shows how to decode RCSwitch protocols.
 
 
 About decoding automats being stores in PROGMEM
@@ -179,4 +181,28 @@ About decoding automats being stores in PROGMEM
 
 This has a performance impact that was measure, see file
 [README-PROGMEM.md](README-PROGMEM.md).
+
+
+About decoding multiple protocols in parallel
+---------------------------------------------
+
+You can register as many decoders as you wish (calling register_Receiver). But
+since the decoding takes place in the interrupt handler, if too many decoders
+are registered, at some point the signals with short typical durations won't
+work.
+
+Just as an example:
+
+- Inside
+[examples/04_rcswitch_recv/04_rcswitch_recv.ino](examples/04_rcswitch_recv/04_rcswitch_recv.ino),
+if calling register_Receiver for each of the 12 RCSwitch protocols, then
+all protocols work fine except: 1, 7, 11 and 12.
+
+- Inside
+[examples/04_rcswitch_recv/04_rcswitch_recv.ino](examples/04_rcswitch_recv/04_rcswitch_recv.ino)
+still, if registering only the protocols 1, 2, 3, 4, 5, 6, 8, 9, 10, then
+each of these protocols works fine.
+
+- The most difficult RCSwitch protocol in this regard is 7: it'll work along
+with 2 other decoders, but not 3.
 
