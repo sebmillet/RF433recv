@@ -42,7 +42,7 @@
 // It is OK to update the below, because if this code is compiled, then we are
 // not in the test plan.
 
-#define DEBUG
+//#define DEBUG
 //#define SIMULATE_INTERRUPTS
 
 #endif // RF433ANY_TESTPLAN

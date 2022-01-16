@@ -67,10 +67,12 @@ void setup() {
         // Replace the below code with your telecommand timings.
         // See RF433any (https://github.com/sebmillet/RF433any) as to how to
         // work out these timings. In particular, you can use example:
-        //   ...
+        //   examples/01_main/01_main.ino
         // to output exactly what is needed to call register_Receiver().
+        // This example complete URL is:
+        //   https://github.com/sebmillet/RF433any/blob/main/examples/01_main/01_main.ino
 
-        // [WRITE THE DEVICE NAME HERE] Yes sure, will do shortly.
+        // [WRITE THE DEVICE NAME HERE]
     rf.register_Receiver(
         RFMOD_MANCHESTER, // mod
         11232,            // initseq
