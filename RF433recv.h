@@ -336,7 +336,9 @@ class RF_manager {
 
         byte int_num;
 
-        bool opt_wait_free_433;
+        bool opt_wait_free_433_is_set;
+        uint32_t opt_wait_free_433_timeout;
+
         bool handle_int_receive_interrupts_is_set;
 
         bool first_decoder_that_has_a_value_resets_others;
@@ -374,7 +376,7 @@ class RF_manager {
 
         void do_events();
 
-        void set_opt_wait_free_433(bool v) { opt_wait_free_433 = v; }
+        void set_opt_wait_free_433(bool v, uint32_t timeout = 0);
         void wait_free_433();
 
         void set_first_decoder_that_has_a_value_resets_others(bool val) {

@@ -34,8 +34,6 @@
 #define PIN_RFINPUT  2
 #define INT_RFINPUT  0
 
-#define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
-
 void callback_anycode(const BitVector *recorded) {
     Serial.print(F("Code received: "));
     char *printed_code = recorded->to_str();

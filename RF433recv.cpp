@@ -985,7 +985,8 @@ byte Receiver::execute_callbacks() {
 
 RF_manager::RF_manager(byte arg_pin_input_num, byte arg_int_num):
         int_num(arg_int_num),
-        opt_wait_free_433(false),
+        opt_wait_free_433_is_set(false),
+        opt_wait_free_433_timeout(0),
         handle_int_receive_interrupts_is_set(false),
         first_decoder_that_has_a_value_resets_others(false),
         inactivate_interrupts_handler_when_a_value_has_been_received(false) {
@@ -999,6 +1000,11 @@ RF_manager::RF_manager(byte arg_pin_input_num, byte arg_int_num):
 }
 
 RF_manager::~RF_manager() { }
+
+void RF_manager::set_opt_wait_free_433(bool v, uint32_t timeout) {
+    opt_wait_free_433_is_set = v;
+    opt_wait_free_433_timeout = timeout;
+}
 
 Receiver* RF_manager::get_tail() {
     const Receiver* ptr_rec = head;
@@ -1107,7 +1113,7 @@ void RF_manager::do_events() {
                 inactivate_interrupts_handler();
             }
 
-            if (opt_wait_free_433) {
+            if (opt_wait_free_433_is_set) {
                 if (!has_waited_free_433) {
                     wait_free_433();
                     has_waited_free_433 = true;
@@ -1215,12 +1221,19 @@ void RF_manager::wait_free_433() {
     IH_wait_free_last16 = (uint16_t)0xffff;
     IH_wait_free_count_ok = 16;
 
+    unsigned long int t0 = millis();
+
     attachInterrupt(int_num, &ih_handle_interrupt_wait_free, CHANGE);
 
         // 75% of the last 16 durations must be in the interval [200, 25000]
-        // (that is, 12 out of 16).
-    while (IH_wait_free_count_ok >= 12)
+        // (that is, 12 'ok' out of 16 in total).
+    while (IH_wait_free_count_ok >= 12 &&
+              (!opt_wait_free_433_timeout
+               || (millis() - t0 < opt_wait_free_433_timeout)
+              )
+          ) {
         ;
+    }
 
     detachInterrupt(int_num);
 

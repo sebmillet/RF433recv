@@ -31,8 +31,6 @@
 #define PIN_RFINPUT  2
 #define INT_RFINPUT  0
 
-#define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
-
 #define ASSERT_OUTPUT_TO_SERIAL
 
 void callback_generic(const BitVector *recorded) {
@@ -206,7 +204,7 @@ void setup() {
 
     Serial.print(F("Waiting for signal\n"));
 
-    rf.set_opt_wait_free_433(false);
+    rf.set_opt_wait_free_433(false, 0);
     rf.activate_interrupts_handler();
 }
 
