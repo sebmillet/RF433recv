@@ -27,7 +27,10 @@
   2. Radio Frequence 433Mhz RECEIVER like MX-RM-5V.
 
   RF433 RECEIVER data pin must be plugged on a board' digital PIN that can
-  trigger interrupts, that is, D2 or D3.
+  trigger interrupts.
+  - On an UNO or NANO, this means D2 or D3.
+  - Other boards will have different constraints. For example on ESP32, all GPIO
+    pins can be configured as interrupts.
   This RECEIVER PIN is defined at the time a 'Track' object is created. This
   library does not set it at compile time.
   See file schema.fzz (Fritzing format) or schema.png, for a circuit example
@@ -997,6 +1000,11 @@ RF_manager::RF_manager(byte arg_pin_input_num, byte arg_int_num):
         // IT MAKES NO SENSE TO HAVE MORE THAN 1 RF_MANAGER
     assert(obj_count == 1);
 
+}
+
+RF_manager::RF_manager(byte arg_pin_input_num):
+        RF_manager(arg_pin_input_num, digitalPinToInterrupt(arg_pin_input_num))
+{
 }
 
 RF_manager::~RF_manager() { }

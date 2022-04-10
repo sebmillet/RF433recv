@@ -29,7 +29,6 @@
 #include <Arduino.h>
 
 #define PIN_RFINPUT  2
-#define INT_RFINPUT  0
 
 #define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
 
@@ -77,7 +76,7 @@ BUILDFUNC_CALLBACK(10)
 BUILDFUNC_CALLBACK(11)
 BUILDFUNC_CALLBACK(12)
 
-RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
+RF_manager rf(PIN_RFINPUT);
 
 #ifdef DEBUG
 void dbg_output_free_memory() {

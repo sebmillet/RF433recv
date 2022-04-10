@@ -19,7 +19,12 @@ Schematic
 2. Radio Frequence 433Mhz RECEIVER like MX-RM-5V.
 
 RF433 RECEIVER data pin must be plugged on a board' digital PIN that can
-trigger interrupts, that is, D2 or D3.
+trigger interrupts.
+
+  - On an UNO or NANO, this means D2 or D3.
+
+  - Other boards will have different constraints. For example on ESP32, all
+    GPIO pins can be configured as interrupts.
 
 
 Usage
@@ -86,11 +91,10 @@ Then you can manage reception like this:
 #include <Arduino.h>
 
     // Depends on your schematic - here, the Radio Frequencies device is
-    // plugged on Arduino' D2, that corresponds to interrupt number 0.
+    // plugged on Arduino' D2.
 #define PIN_RFINPUT  2
-#define INT_RFINPUT  0
 
-RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
+RF_manager rf(PIN_RFINPUT);
 
 void callback1(const BitVector *recorded) {
     Serial.print(F("Signal received from telecommand\n"));

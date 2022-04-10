@@ -32,6 +32,8 @@
 #include <Arduino.h>
 
 #define PIN_RFINPUT  2
+    // Specifying the interrupt number is optional, you can leave it to the
+    // constructor to work it out.
 #define INT_RFINPUT  0
 
 void callback_anycode(const BitVector *recorded) {
@@ -57,6 +59,8 @@ void callback_button_down(const BitVector *recorded) {
 }
 
 RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
+    // Second parameter is optional. Could also be:
+//RF_manager rf(PIN_RFINPUT);
 
 void setup() {
     pinMode(PIN_RFINPUT, INPUT);

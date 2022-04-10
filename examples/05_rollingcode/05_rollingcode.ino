@@ -84,6 +84,13 @@ void button_down_pushed() {
     // the same codes. Said differently: we can't identify the telecommand
     // behind. So we could call it 'the rolling code of the (very) poor man'.
 void callback(const BitVector *recorded) {
+
+        // Defensive programming
+        // register_Receiver() sets the number of bits to 72, so we should
+        // always have 72 bits when entering here.
+    if (recorded->get_nb_bits() != 72)
+        return;
+
     byte first_half_byte = (recorded->get_nth_byte(8) & 0xF0) >> 4;
     byte my_eigth = (recorded->get_nth_byte(2) & 0x0F);
 

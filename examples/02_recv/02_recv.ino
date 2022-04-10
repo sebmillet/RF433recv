@@ -29,7 +29,6 @@
 #include <Arduino.h>
 
 #define PIN_RFINPUT  2
-#define INT_RFINPUT  0
 
 #define ASSERT_OUTPUT_TO_SERIAL
 
@@ -89,7 +88,7 @@ void callback8(const BitVector *recorded) {
     callback_generic(recorded);
 }
 
-RF_manager rf(PIN_RFINPUT, INT_RFINPUT);
+RF_manager rf(PIN_RFINPUT);
 
 void setup() {
     pinMode(PIN_RFINPUT, INPUT);

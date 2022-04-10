@@ -355,6 +355,7 @@ class RF_manager {
         void activate_interrupts_handler();
         void inactivate_interrupts_handler();
 
+        RF_manager(byte arg_pin_input_num);
         RF_manager(byte arg_pin_input_num, byte arg_int_num);
         ~RF_manager();
 
