@@ -389,6 +389,10 @@ class RF_manager {
         }
 };
 
+#ifdef SIMULATE_INTERRUPTS
+bool has_read_all_timings();
+#endif
+
 #endif // _RF433RECV_H
 
 // vim: ts=4:sw=4:tw=80:et

@@ -1,10 +1,13 @@
-ARDUINO_DIR = /usr/share/arduino
-ARDUINO_LIBS = RF433recv
-ARDMK_DIR = /home/sebastien/.arduino_mk
+ALL: test.ino.with_bootloader.hex
 
-# USER_LIB_PATH = /home/sebastien/travail/cpp/seb/arduino/libraries
+color: test.ino
+	./am2 -t 1 test.ino
 
-BOARD_TAG = uno
-MCU = atmega328
+test.ino.with_bootloader.hex: test.ino
+	GCC_COLORS="" ./am2 --no-color -t 1 test.ino
 
-include $(ARDMK_DIR)/Arduino.mk
+clean:
+	rm -rf build
+
+mrproper:
+	rm -rf build out
