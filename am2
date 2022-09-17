@@ -1,10 +1,8 @@
 #!/usr/bin/bash
 
-# am
-# Has an update specific to RF433any library (RF433ANY_TESTPLAN macro used
-# instead of TESTPLAN).
+# am2
 
-# Copyright 2019, 2020, 2021 Sébastien Millet
+# Copyright 2019, 2020, 2021, 2022 Sébastien Millet
 
 # Can perform the following:
 #   1. Compile the code
@@ -22,10 +20,12 @@
 #      installed (from tar.gz source) package used so far.
 # 1.7  Renames archlinux-arduino back to arduino, and created corresponding
 #      symlink (was cleaner to do s).
+# 2.0  Replaces arduino-builder with arduino-cli
+# 2.1  Output warning if ARDUINO_USER_LIBS environment variable is not set
 
 set -euo pipefail
 
-VERSION=2.0
+VERSION=2.1
 
 PORT=
 BOARD=
@@ -277,6 +277,13 @@ if [ "${COMPILE}" == "yes" ]; then
     TMP_ULIB=${ARDUINO_USER_LIBS:-}
     if [ -n "${TMP_ULIB}" ]; then
         OPT_LIB="--libraries ""${TMP_ULIB}"""
+    else
+        echo
+        echo "***********************************************************"
+        echo "* WARNING                                                 *"
+        echo "*   The environment variable ARDUINO_USER_LIBS is not set *"
+        echo "***********************************************************"
+        echo
     fi
 
     TESTPLAN_OPT=""
