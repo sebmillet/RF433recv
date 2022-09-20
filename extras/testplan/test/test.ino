@@ -75,6 +75,7 @@ BUILDFUNC_CALLBACK(9)
 BUILDFUNC_CALLBACK(10)
 BUILDFUNC_CALLBACK(11)
 BUILDFUNC_CALLBACK(12)
+BUILDFUNC_CALLBACK(13)
 
 RF_manager rf(PIN_RFINPUT);
 
@@ -105,6 +106,7 @@ void setup() {
 #define reg9
 #define reg10
 #define reg11
+#define reg12
 
 #ifdef reg1
         // FIRST CODE, inspired from FLO
@@ -344,6 +346,24 @@ void setup() {
         callback12,
         0
     );
+#endif
+
+#ifdef reg12
+    rf.register_Receiver(
+        RFMOD_TRIBIT_INVERTED, // mod
+        8550,                  // initseq
+        0,                     // lo_prefix
+        0,                     // hi_prefix
+        500,                   // first_lo_ign
+        500,                   // lo_short
+        500,                   // lo_long
+        1900,                  // hi_short
+        3800,                  // hi_long
+        0,                     // lo_last
+        8550,                  // sep
+        37,                    // nb_bits
+        callback13,
+        1000);
 #endif
 
     rf.set_opt_wait_free_433(false);
