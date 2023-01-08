@@ -62,7 +62,7 @@ static void rf433recv_assert_failed(unsigned int line) {
     // code), but I prefer to keep it out of symbols published by the lib...
 #define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
 
-void handle_int_receive();
+void IRAM_ATTR handle_int_receive();
 
 
 // * **************** *********************************************************
