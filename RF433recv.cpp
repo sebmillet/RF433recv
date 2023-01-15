@@ -62,7 +62,10 @@ static void rf433recv_assert_failed(unsigned int line) {
     // code), but I prefer to keep it out of symbols published by the lib...
 #define ARRAYSZ(a) (sizeof(a) / sizeof(*a))
 
-void IRAM_ATTR handle_int_receive();
+#if defined(ESP8266)
+IRAM_ATTR
+#endif
+void handle_int_receive();
 
 
 // * **************** *********************************************************
@@ -1753,6 +1756,9 @@ static sbuf_entry_t sbuf[BUFFER_SIGNALS_NB];
 static byte sbuf_read_head = 0;
 static byte sbuf_write_head = 0;
 
+#if defined(ESP8266)
+IRAM_ATTR
+#endif
 void handle_int_receive() {
     static unsigned long last_t = 0;
 
