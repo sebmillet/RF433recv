@@ -1277,6 +1277,7 @@ volatile uint16_t RF_manager::IH_wait_free_last16;
 #define treg11
 #define treg12
 #define treg13
+#define treg14
 
 #ifdef SIMULATE_INTERRUPTS
 const uint16_t timings[] PROGMEM = {
@@ -1807,6 +1808,35 @@ const uint16_t timings[] PROGMEM = {
     260, 1272,
     264, 10220,
     276, 2560,
+#endif
+
+#ifdef treg14
+0, 12096,
+1328, 380,
+464, 1164,
+1316, 392,
+1324, 396,
+1296, 408,
+1308, 404,
+1308, 408,
+1296, 416,
+452, 1180,
+448, 1184,
+452, 1180,
+452, 1184,
+444, 1184,
+448, 1184,
+1300, 412,
+1300, 416,
+440, 1192,
+440, 1188,
+444, 1188,
+440, 1192,
+440, 1196,
+432, 1196,
+1288, 424,
+428, 1204,
+432, 12128,
 #endif
 
     0, 0

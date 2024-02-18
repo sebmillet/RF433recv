@@ -45,7 +45,7 @@
 //#define DEBUG
 //#define SIMULATE_INTERRUPTS
 
-#endif // RF433ANY_TESTPLAN
+#endif // RF433RECV_TESTPLAN
 
     // The possibility *not* to compact durations is available for debugging
     // purposes. You should not use it in normal circumstances.
